@@ -1,0 +1,3 @@
+# Copiar como application-local.properties (ignorado por git) y completar.
+# Es la clave del rol "clinica" que crea backend/db/init.sql.
+spring.datasource.password=cambiar-esta-clave

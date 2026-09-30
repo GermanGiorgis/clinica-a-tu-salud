@@ -1,0 +1,25 @@
+# Java / Maven
+target/
+HELP.md
+*.class
+*.log
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.tsbuildinfo
+
+# Entorno y secretos
+.env
+.env.*
+!.env.example
+application-local.properties
+application-local.yml
+
+# IDE / sistema
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
