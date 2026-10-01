@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { MagnifyingGlass, Stethoscope } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarPatologias } from "../api/patologias";
 import type { Medico, Patologia } from "../types";
@@ -27,7 +28,7 @@ export function MedicosPage() {
       <h1>Médicos</h1>
       {patologias.length > 0 && (
         <label className="medicos-lista__filtro">
-          ¿Qué te pasa?
+          <MagnifyingGlass size={16} aria-hidden="true" /> ¿Qué te pasa?
           <select value={patologiaId} onChange={(e) => setPatologiaId(e.target.value)}>
             <option value="">Ver todos los médicos</option>
             {patologias.map((p) => (
@@ -36,19 +37,22 @@ export function MedicosPage() {
           </select>
         </label>
       )}
-      {error && <p className="auth-form__error">{error}</p>}
-      {!error && medicos === null && <p>Cargando…</p>}
-      {medicos !== null && medicos.length === 0 && <p>No hay médicos para esa especialidad.</p>}
+      {error && <p className="error-banner">{error}</p>}
+      {!error && medicos === null && <p className="empty-state">Cargando…</p>}
+      {medicos !== null && medicos.length === 0 && <p className="empty-state">No hay médicos para esa especialidad.</p>}
       <ul className="medicos-lista">
         {medicos?.map((medico) => (
           <li key={medico.id}>
-            <Link to={`/medicos/${medico.id}`} className="medicos-lista__card">
-              <strong>{medico.nombre} {medico.apellido}</strong>
-              <span className="medicos-lista__matricula">Matrícula {medico.matricula}</span>
-              <span className="medicos-lista__especialidades">
-                {medico.especialidades.length > 0
-                  ? medico.especialidades.map((e) => e.nombre).join(", ")
-                  : "Sin especialidad cargada"}
+            <Link to={`/medicos/${medico.id}`} className="card medicos-lista__card">
+              <span className="medicos-lista__avatar"><Stethoscope size={22} weight="duotone" aria-hidden="true" /></span>
+              <span className="medicos-lista__datos">
+                <strong>{medico.nombre} {medico.apellido}</strong>
+                <span className="medicos-lista__matricula">Matrícula {medico.matricula}</span>
+                <span className="medicos-lista__especialidades">
+                  {medico.especialidades.length > 0
+                    ? medico.especialidades.map((e) => e.nombre).join(", ")
+                    : "Sin especialidad cargada"}
+                </span>
               </span>
             </Link>
           </li>

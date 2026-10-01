@@ -39,7 +39,7 @@ export function LoginPage() {
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
         {error && <p className="auth-form__error">{error}</p>}
-        <button type="submit" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</button>
+        <button type="submit" className="btn btn-primary" disabled={cargando}>{cargando ? "Ingresando…" : "Ingresar"}</button>
       </form>
       <p>¿No tenés cuenta? <Link to="/registro">Registrate como paciente</Link></p>
     </main>

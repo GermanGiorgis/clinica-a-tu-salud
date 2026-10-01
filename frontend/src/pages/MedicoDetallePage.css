@@ -1,30 +1,60 @@
+.volver {
+  display: inline-block;
+  font-size: 0.9rem;
+  color: var(--color-muted-foreground);
+  text-decoration: none;
+  margin-bottom: var(--space-md);
+}
+
+.volver:hover {
+  color: var(--color-primary);
+}
+
+.medico-detalle__cabecera {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-md);
+}
+
+.medico-detalle__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: var(--color-primary);
+}
+
 .medico-detalle__info {
-  opacity: 0.8;
-  margin-top: 0.25rem;
+  color: var(--color-muted-foreground);
+  margin-top: 0;
 }
 
 .medico-detalle__fecha {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
   width: fit-content;
-  margin: 1.5rem 0;
+  margin: var(--space-lg) 0 0;
   font-size: 0.9rem;
 }
 
 .medico-detalle__fecha input {
   font: inherit;
-  padding: 0.4rem 0.5rem;
-  border: 1px solid currentColor;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-card);
+  color: var(--color-foreground);
 }
 
 .medico-detalle__horarios {
   list-style: none;
   padding: 0;
-  margin: 0.75rem 0 0;
+  margin: var(--space-sm) 0 0;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
@@ -32,55 +62,54 @@
 
 .medico-detalle__horarios button {
   font: inherit;
-  padding: 0.4rem 0.8rem;
-  border: 1px solid currentColor;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--color-border);
   border-radius: 999px;
-  background: transparent;
-  color: inherit;
+  background: var(--color-card);
+  color: var(--color-foreground);
   cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.medico-detalle__horarios button:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
 }
 
 .medico-detalle__horarios button.activo {
-  background: currentColor;
-}
-
-.medico-detalle__horarios button.activo {
-  color: Canvas;
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .medico-detalle__reserva {
-  margin-top: 1.25rem;
-  padding: 1rem;
-  border: 1px solid currentColor;
-  border-radius: 8px;
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-muted);
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: var(--space-sm);
   max-width: 420px;
 }
 
 .medico-detalle__reserva textarea {
-  font: inherit;
-  padding: 0.5rem;
-  border: 1px solid currentColor;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
   resize: vertical;
 }
 
-.medico-detalle__reserva button,
-.medico-detalle__ok button {
-  font: inherit;
-  padding: 0.5rem 0.8rem;
-  border: 1px solid currentColor;
-  border-radius: 6px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
+.medico-detalle__reserva button {
   width: fit-content;
 }
 
 .medico-detalle__ok {
-  margin-top: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: var(--space-md);
+  color: var(--color-accent-hover);
+  font-weight: 500;
 }

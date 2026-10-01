@@ -1,37 +1,64 @@
 .medicos-lista__filtro {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  max-width: 320px;
-  margin-top: 0.75rem;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  max-width: 420px;
+  margin: var(--space-md) 0 var(--space-lg);
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+}
+
+.medicos-lista__filtro select {
+  flex: 1;
+  min-width: 180px;
 }
 
 .medicos-lista {
   list-style: none;
   padding: 0;
-  margin: 1.5rem 0 0;
+  margin: var(--space-md) 0 0;
   display: grid;
-  gap: 1rem;
+  gap: var(--space-md);
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
 }
 
 .medicos-lista__card {
   display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 1rem 1.1rem;
-  border: 1px solid currentColor;
-  border-radius: 8px;
+  gap: var(--space-md);
+  align-items: flex-start;
   text-decoration: none;
   color: inherit;
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
 }
 
 .medicos-lista__card:hover {
-  opacity: 0.85;
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.medicos-lista__avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--color-muted);
+  color: var(--color-primary);
+}
+
+.medicos-lista__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .medicos-lista__matricula,
 .medicos-lista__especialidades {
   font-size: 0.85rem;
-  opacity: 0.75;
+  color: var(--color-muted-foreground);
 }

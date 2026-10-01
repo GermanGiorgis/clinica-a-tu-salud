@@ -2,42 +2,77 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid currentColor;
+  gap: var(--space-md);
+  padding: 0.9rem 1.5rem;
+  background: var(--color-card);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  flex-wrap: wrap;
 }
 
 .header__marca {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--font-heading);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   text-decoration: none;
-  color: inherit;
+  color: var(--color-foreground);
 }
 
 .header__nav {
   display: flex;
   align-items: center;
-  gap: 1.1rem;
+  gap: 1.3rem;
   flex-wrap: wrap;
 }
 
 .header__nav a {
-  color: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-muted-foreground);
   text-decoration: none;
-  opacity: 0.85;
+  font-size: 0.92rem;
+  font-weight: 500;
+  transition: color 150ms ease;
 }
 
 .header__nav a:hover {
-  opacity: 1;
-  text-decoration: underline;
+  color: var(--color-primary);
+}
+
+.header__nav a.activo {
+  color: var(--color-primary);
+  font-weight: 600;
 }
 
 .header__usuario {
-  opacity: 0.75;
-  font-size: 0.9rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-muted-foreground);
+  font-size: 0.88rem;
 }
 
-.header__nav button {
-  font: inherit;
-  cursor: pointer;
+.header__rol {
+  text-transform: capitalize;
+  opacity: 0.75;
+}
+
+@media (max-width: 640px) {
+  .header {
+    padding: 0.75rem 1rem;
+  }
+
+  .header__nav {
+    gap: 0.85rem;
+  }
+
+  .header__nombre {
+    display: none;
+  }
 }

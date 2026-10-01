@@ -50,7 +50,7 @@ export function RegistroPage() {
           <label>Fecha de nacimiento<input type="date" required {...campo("fechaNacimiento")} /></label>
         </div>
         {error && <p className="auth-form__error">{error}</p>}
-        <button type="submit" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</button>
+        <button type="submit" className="btn btn-primary" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</button>
       </form>
       <p>¿Ya tenés cuenta? <Link to="/login">Iniciá sesión</Link></p>
     </main>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { CalendarBlank, CheckCircle, ClipboardText, MapPin, UserCircleMinus, XCircle } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
@@ -113,42 +114,46 @@ export function AgendaMedicoPage() {
         </label>
       )}
 
-      {error && <p className="auth-form__error">{error}</p>}
-      {esAdmin && medicoId === null && !error && <p>Elegí un médico para ver su agenda.</p>}
-      {(!esAdmin || medicoId !== null) && turnos === null && !error && <p>Cargando…</p>}
-      {turnos !== null && turnos.length === 0 && <p>No hay turnos para mostrar.</p>}
+      {error && <p className="error-banner">{error}</p>}
+      {esAdmin && medicoId === null && !error && <p className="empty-state">Elegí un médico para ver su agenda.</p>}
+      {(!esAdmin || medicoId !== null) && turnos === null && !error && <p className="empty-state">Cargando…</p>}
+      {turnos !== null && turnos.length === 0 && <p className="empty-state">No hay turnos para mostrar.</p>}
 
       <ul className="agenda-medico__lista">
         {turnos?.map((turno) => (
-          <li key={turno.id} className="agenda-medico__item">
+          <li key={turno.id} className="card agenda-medico__item">
             <div className="agenda-medico__datos">
               <strong>{turno.pacienteNombre}</strong>
-              <span>{new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
-              <span>{turno.consultorioNombre}</span>
+              <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
+              <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
               {turno.motivoConsulta && <span className="agenda-medico__motivo">"{turno.motivoConsulta}"</span>}
               {turno.motivoCancelacionNombre && (
                 <span className="agenda-medico__motivo">Cancelado por: {turno.motivoCancelacionNombre}</span>
               )}
             </div>
             <div className="agenda-medico__acciones">
-              <span className={`agenda-medico__estado agenda-medico__estado--${turno.estado.toLowerCase()}`}>
+              <span className={`badge badge--${turno.estado.toLowerCase()}`}>
                 {ETIQUETA_ESTADO[turno.estado]}
               </span>
               {turno.estado === "RESERVADO" && (
-                <button type="button" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
-                  Confirmar
+                <button type="button" className="btn btn-primary btn-sm" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
+                  <CheckCircle size={16} aria-hidden="true" /> Confirmar
                 </button>
               )}
               {turno.estado === "CONFIRMADO" && (
                 <>
-                  <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }}>Cargar consulta</Link>
-                  <button type="button" disabled={procesando === turno.id} onClick={() => handleAusente(turno.id)}>
-                    Marcar ausente
+                  <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
+                    <ClipboardText size={16} aria-hidden="true" /> Cargar consulta
+                  </Link>
+                  <button type="button" className="btn btn-ghost btn-sm" disabled={procesando === turno.id} onClick={() => handleAusente(turno.id)}>
+                    <UserCircleMinus size={16} aria-hidden="true" /> Marcar ausente
                   </button>
                 </>
               )}
               {turno.estado === "ATENDIDO" && (
-                <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }}>Ver consulta</Link>
+                <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
+                  <ClipboardText size={16} aria-hidden="true" /> Ver consulta
+                </Link>
               )}
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>
@@ -160,8 +165,8 @@ export function AgendaMedicoPage() {
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}
                   </select>
-                  <button type="button" disabled={procesando === turno.id} onClick={() => handleCancelar(turno.id)}>
-                    Cancelar
+                  <button type="button" className="btn btn-danger btn-sm" disabled={procesando === turno.id} onClick={() => handleCancelar(turno.id)}>
+                    <XCircle size={16} aria-hidden="true" /> Cancelar
                   </button>
                 </>
               )}

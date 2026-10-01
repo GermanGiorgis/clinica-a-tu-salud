@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CalendarBlank, CheckCircle, MapPin, XCircle } from "@phosphor-icons/react";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { cancelarTurno, confirmarTurno, misTurnos } from "../api/turnos";
 import { extraerError } from "../utils/errores";
@@ -63,31 +64,31 @@ export function MisTurnosPage() {
   return (
     <main className="page">
       <h1>Mis turnos</h1>
-      {error && <p className="auth-form__error">{error}</p>}
-      {turnos === null && !error && <p>Cargando…</p>}
-      {turnos !== null && turnos.length === 0 && <p>Todavía no reservaste ningún turno.</p>}
+      {error && <p className="error-banner">{error}</p>}
+      {turnos === null && !error && <p className="empty-state">Cargando…</p>}
+      {turnos !== null && turnos.length === 0 && <p className="empty-state">Todavía no reservaste ningún turno.</p>}
 
       <ul className="mis-turnos">
         {turnos?.map((turno) => (
-          <li key={turno.id} className="mis-turnos__item">
+          <li key={turno.id} className="card mis-turnos__item">
             <div className="mis-turnos__datos">
               <strong>{turno.medicoNombre}</strong>
-              <span>{new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
-              <span>{turno.consultorioNombre}</span>
+              <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
+              <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
               {turno.motivoConsulta && <span className="mis-turnos__motivo">"{turno.motivoConsulta}"</span>}
               {turno.motivoCancelacionNombre && (
                 <span className="mis-turnos__motivo">Cancelado por: {turno.motivoCancelacionNombre}</span>
               )}
             </div>
             <div className="mis-turnos__acciones">
-              <span className={`mis-turnos__estado mis-turnos__estado--${turno.estado.toLowerCase()}`}>
+              <span className={`badge badge--${turno.estado.toLowerCase()}`}>
                 {ETIQUETA_ESTADO[turno.estado]}
               </span>
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>
                   {turno.estado === "RESERVADO" && (
-                    <button type="button" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
-                      Confirmar
+                    <button type="button" className="btn btn-primary btn-sm" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
+                      <CheckCircle size={16} aria-hidden="true" /> Confirmar
                     </button>
                   )}
                   <select
@@ -98,8 +99,8 @@ export function MisTurnosPage() {
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}
                   </select>
-                  <button type="button" disabled={procesando === turno.id} onClick={() => handleCancelar(turno.id)}>
-                    Cancelar
+                  <button type="button" className="btn btn-danger btn-sm" disabled={procesando === turno.id} onClick={() => handleCancelar(turno.id)}>
+                    <XCircle size={16} aria-hidden="true" /> Cancelar
                   </button>
                 </>
               )}

@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
+import { Pill, Plus, Trash, X } from "@phosphor-icons/react";
 import { crearConsulta, obtenerConsultaDeTurno } from "../api/consultas";
 import { listarMedicamentos } from "../api/medicamentos";
 import { crearReceta } from "../api/recetas";
@@ -126,7 +127,7 @@ export function ConsultaPage() {
 
   return (
     <main className="page">
-      <Link to="/agenda">← Volver a la agenda</Link>
+      <Link to="/agenda" className="volver">← Volver a la agenda</Link>
       <h1>Consulta</h1>
       {turnoInfo && (
         <p className="consulta__info">
@@ -134,8 +135,8 @@ export function ConsultaPage() {
         </p>
       )}
 
-      {error && <p className="auth-form__error">{error}</p>}
-      {existe === null && !error && <p>Cargando…</p>}
+      {error && <p className="error-banner">{error}</p>}
+      {existe === null && !error && <p className="empty-state">Cargando…</p>}
 
       {existe === false && esStaff && (
         <form className="consulta__form" onSubmit={handleCrearConsulta}>
@@ -159,23 +160,23 @@ export function ConsultaPage() {
                 onChange={(e) => actualizarDiagnostico(i, "codigoCie10", e.target.value)}
               />
               {diagnosticos.length > 1 && (
-                <button type="button" onClick={() => setDiagnosticos(diagnosticos.filter((_, idx) => idx !== i))}>
-                  Quitar
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDiagnosticos(diagnosticos.filter((_, idx) => idx !== i))}>
+                  <Trash size={16} aria-hidden="true" />
                 </button>
               )}
             </div>
           ))}
-          <button type="button" onClick={() => setDiagnosticos([...diagnosticos, { descripcion: "", codigoCie10: "" }])}>
-            + Agregar diagnóstico
+          <button type="button" className="btn btn-secondary btn-sm consulta__agregar" onClick={() => setDiagnosticos([...diagnosticos, { descripcion: "", codigoCie10: "" }])}>
+            <Plus size={16} aria-hidden="true" /> Agregar diagnóstico
           </button>
 
-          <button type="submit" disabled={guardandoConsulta} className="consulta__guardar">
+          <button type="submit" className="btn btn-primary consulta__guardar" disabled={guardandoConsulta}>
             {guardandoConsulta ? "Guardando…" : "Guardar consulta"}
           </button>
         </form>
       )}
 
-      {existe === false && !esStaff && <p>Esta consulta todavía no fue cargada.</p>}
+      {existe === false && !esStaff && <p className="empty-state">Esta consulta todavía no fue cargada.</p>}
 
       {existe === true && consulta && (
         <div className="consulta__detalle">
@@ -200,14 +201,14 @@ export function ConsultaPage() {
 
           <section>
             <h2>Recetas</h2>
-            {consulta.recetas.length === 0 && <p>No se emitieron recetas.</p>}
+            {consulta.recetas.length === 0 && <p className="empty-state">No se emitieron recetas.</p>}
             {consulta.recetas.map((r) => (
               <div key={r.id} className="consulta__receta">
                 {r.observaciones && <p className="consulta__observaciones">{r.observaciones}</p>}
                 <ul>
                   {r.items.map((it) => (
                     <li key={it.id}>
-                      {it.medicamentoNombre} — {it.dosis}, {it.frecuencia}, por {it.duracionDias} días
+                      <Pill size={16} aria-hidden="true" /> {it.medicamentoNombre} — {it.dosis}, {it.frecuencia}, por {it.duracionDias} días
                     </li>
                   ))}
                 </ul>
@@ -215,7 +216,9 @@ export function ConsultaPage() {
             ))}
 
             {esStaff && !mostrarFormReceta && (
-              <button type="button" onClick={() => setMostrarFormReceta(true)}>+ Agregar receta</button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMostrarFormReceta(true)}>
+                <Plus size={16} aria-hidden="true" /> Agregar receta
+              </button>
             )}
 
             {esStaff && mostrarFormReceta && (
@@ -242,19 +245,24 @@ export function ConsultaPage() {
                       onChange={(e) => actualizarItem(i, "duracionDias", e.target.value)}
                     />
                     {items.length > 1 && (
-                      <button type="button" onClick={() => setItems(items.filter((_, idx) => idx !== i))}>Quitar</button>
+                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setItems(items.filter((_, idx) => idx !== i))}>
+                        <Trash size={16} aria-hidden="true" />
+                      </button>
                     )}
                   </div>
                 ))}
                 <button
                   type="button"
+                  className="btn btn-secondary btn-sm consulta__agregar"
                   onClick={() => setItems([...items, { medicamentoId: "", dosis: "", frecuencia: "", duracionDias: "" }])}
                 >
-                  + Agregar medicamento
+                  <Plus size={16} aria-hidden="true" /> Agregar medicamento
                 </button>
                 <div className="consulta__fila">
-                  <button type="submit" disabled={guardandoReceta}>{guardandoReceta ? "Guardando…" : "Guardar receta"}</button>
-                  <button type="button" onClick={() => setMostrarFormReceta(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoReceta}>{guardandoReceta ? "Guardando…" : "Guardar receta"}</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarFormReceta(false)}>
+                    <X size={16} aria-hidden="true" /> Cancelar
+                  </button>
                 </div>
               </form>
             )}

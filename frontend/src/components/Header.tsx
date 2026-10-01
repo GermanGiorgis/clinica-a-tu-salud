@@ -1,35 +1,60 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Calendar, ClipboardText, SignOut, Stethoscope, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Header.css";
 
 export function Header() {
   const { usuario, estaAutenticado, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   function handleLogout() {
     logout();
     navigate("/");
   }
 
+  function activo(ruta: string) {
+    return location.pathname === ruta || location.pathname.startsWith(`${ruta}/`);
+  }
+
   return (
     <header className="header">
-      <Link to="/" className="header__marca">Clínica</Link>
+      <Link to="/" className="header__marca">
+        <Stethoscope size={22} weight="bold" aria-hidden="true" />
+        Clínica
+      </Link>
       <nav className="header__nav">
-        <Link to="/medicos">Médicos</Link>
-        {estaAutenticado && usuario?.rol === "PACIENTE" && <Link to="/mis-turnos">Mis turnos</Link>}
-        {estaAutenticado && usuario?.rol === "PACIENTE" && <Link to="/historial">Mi historial</Link>}
+        <Link to="/medicos" className={activo("/medicos") ? "activo" : ""}>Médicos</Link>
+        {estaAutenticado && usuario?.rol === "PACIENTE" && (
+          <Link to="/mis-turnos" className={activo("/mis-turnos") ? "activo" : ""}>
+            <Calendar size={18} aria-hidden="true" /> Mis turnos
+          </Link>
+        )}
+        {estaAutenticado && usuario?.rol === "PACIENTE" && (
+          <Link to="/historial" className={activo("/historial") ? "activo" : ""}>
+            <ClipboardText size={18} aria-hidden="true" /> Mi historial
+          </Link>
+        )}
         {estaAutenticado && (usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN") && (
-          <Link to="/agenda">Mi agenda</Link>
+          <Link to="/agenda" className={activo("/agenda") ? "activo" : ""}>
+            <Calendar size={18} aria-hidden="true" /> Mi agenda
+          </Link>
         )}
         {estaAutenticado ? (
           <>
-            <span className="header__usuario">{usuario?.nombre} · {usuario?.rol}</span>
-            <button type="button" onClick={handleLogout}>Salir</button>
+            <span className="header__usuario">
+              <UserCircle size={20} aria-hidden="true" />
+              <span className="header__nombre">{usuario?.nombre}</span>
+              <span className="header__rol">{usuario?.rol}</span>
+            </span>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={handleLogout}>
+              <SignOut size={16} aria-hidden="true" /> Salir
+            </button>
           </>
         ) : (
           <>
             <Link to="/login">Iniciar sesión</Link>
-            <Link to="/registro">Registrarme</Link>
+            <Link to="/registro" className="btn btn-primary btn-sm">Registrarme</Link>
           </>
         )}
       </nav>

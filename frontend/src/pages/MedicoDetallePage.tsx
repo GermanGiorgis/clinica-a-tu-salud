@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { CalendarBlank, CheckCircle, Stethoscope } from "@phosphor-icons/react";
 import { obtenerDisponibilidad, obtenerMedico } from "../api/medicos";
 import { crearTurno } from "../api/turnos";
 import { useAuth } from "../context/AuthContext";
@@ -67,7 +68,7 @@ export function MedicoDetallePage() {
   }
 
   if (!medico) {
-    return <main className="page">{error ? <p className="auth-form__error">{error}</p> : <p>Cargando…</p>}</main>;
+    return <main className="page">{error ? <p className="error-banner">{error}</p> : <p className="empty-state">Cargando…</p>}</main>;
   }
 
   const esStaff = usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN";
@@ -75,21 +76,26 @@ export function MedicoDetallePage() {
 
   return (
     <main className="page">
-      <Link to="/medicos">← Volver a médicos</Link>
-      <h1>{medico.nombre} {medico.apellido}</h1>
-      <p className="medico-detalle__info">
-        Matrícula {medico.matricula}
-        {medico.especialidades.length > 0 && <> · {medico.especialidades.map((e) => e.nombre).join(", ")}</>}
-      </p>
+      <Link to="/medicos" className="volver">← Volver a médicos</Link>
+      <div className="medico-detalle__cabecera">
+        <span className="medico-detalle__avatar"><Stethoscope size={28} weight="duotone" aria-hidden="true" /></span>
+        <div>
+          <h1>{medico.nombre} {medico.apellido}</h1>
+          <p className="medico-detalle__info">
+            Matrícula {medico.matricula}
+            {medico.especialidades.length > 0 && <> · {medico.especialidades.map((e) => e.nombre).join(", ")}</>}
+          </p>
+        </div>
+      </div>
 
       <label className="medico-detalle__fecha">
-        Fecha
+        <CalendarBlank size={16} aria-hidden="true" /> Fecha
         <input type="date" value={fecha} min={hoyISO()} onChange={(e) => setFecha(e.target.value)} />
       </label>
 
       <h2>Horarios disponibles</h2>
-      {horarios === null && <p>Calculando…</p>}
-      {horarios !== null && horarios.length === 0 && <p>No hay horarios libres ese día.</p>}
+      {horarios === null && <p className="empty-state">Calculando…</p>}
+      {horarios !== null && horarios.length === 0 && <p className="empty-state">No hay horarios libres ese día.</p>}
       <ul className="medico-detalle__horarios">
         {horarios?.map((h) => (
           <li key={h}>
@@ -120,14 +126,14 @@ export function MedicoDetallePage() {
               {esStaff && (
                 <label>
                   DNI del paciente
-                  <input value={pacienteDni} onChange={(e) => setPacienteDni(e.target.value)} />
+                  <input className="input" value={pacienteDni} onChange={(e) => setPacienteDni(e.target.value)} />
                 </label>
               )}
               <label>
                 Motivo de la consulta (opcional)
-                <textarea value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} rows={2} />
+                <textarea className="input" value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} rows={2} />
               </label>
-              <button type="button" onClick={reservar} disabled={reservando || (esStaff && !pacienteDni)}>
+              <button type="button" className="btn btn-primary" onClick={reservar} disabled={reservando || (esStaff && !pacienteDni)}>
                 {reservando ? "Reservando…" : `Reservar ${fecha} ${horarioElegido.slice(0, 5)}`}
               </button>
             </>
@@ -135,11 +141,11 @@ export function MedicoDetallePage() {
         </div>
       )}
 
-      {error && <p className="auth-form__error">{error}</p>}
+      {error && <p className="error-banner">{error}</p>}
       {mensajeOk && (
         <p className="medico-detalle__ok">
-          {mensajeOk}{" "}
-          {!esStaff && <button type="button" onClick={() => navigate("/mis-turnos")}>Ver mis turnos</button>}
+          <CheckCircle size={18} weight="fill" aria-hidden="true" /> {mensajeOk}{" "}
+          {!esStaff && <button type="button" className="btn btn-secondary btn-sm" onClick={() => navigate("/mis-turnos")}>Ver mis turnos</button>}
         </p>
       )}
     </main>
