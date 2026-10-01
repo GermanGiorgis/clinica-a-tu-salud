@@ -8,6 +8,8 @@ export interface CrearTurnoDatos {
   motivoConsulta?: string;
   /** Solo la usa un médico o admin reservando a nombre de otra persona. */
   pacienteDni?: string;
+  /** Opcional: con qué afiliación propia del paciente se atiende este turno. */
+  afiliacionId?: number;
 }
 
 export async function crearTurno(datos: CrearTurnoDatos): Promise<Turno> {

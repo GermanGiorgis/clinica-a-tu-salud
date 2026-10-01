@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, ClipboardText, SignOut, Stethoscope, UserCircle } from "@phosphor-icons/react";
+import { Calendar, ClipboardText, ShieldCheck, SignOut, Stethoscope, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Header.css";
 
@@ -33,6 +33,11 @@ export function Header() {
         {estaAutenticado && usuario?.rol === "PACIENTE" && (
           <Link to="/historial" className={activo("/historial") ? "activo" : ""}>
             <ClipboardText size={18} aria-hidden="true" /> Mi historial
+          </Link>
+        )}
+        {estaAutenticado && usuario?.rol === "PACIENTE" && (
+          <Link to="/mi-cobertura" className={activo("/mi-cobertura") ? "activo" : ""}>
+            <ShieldCheck size={18} aria-hidden="true" /> Mi cobertura
           </Link>
         )}
         {estaAutenticado && (usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN") && (

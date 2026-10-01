@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarBlank, CheckCircle, ClipboardText, MapPin, UserCircleMinus, XCircle } from "@phosphor-icons/react";
+import { CalendarBlank, CheckCircle, ClipboardText, MapPin, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
@@ -126,6 +126,7 @@ export function AgendaMedicoPage() {
               <strong>{turno.pacienteNombre}</strong>
               <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
               <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
+              <span><ShieldCheck size={15} aria-hidden="true" /> {turno.obraSocialNombre ?? "Particular"}</span>
               {turno.motivoConsulta && <span className="agenda-medico__motivo">"{turno.motivoConsulta}"</span>}
               {turno.motivoCancelacionNombre && (
                 <span className="agenda-medico__motivo">Cancelado por: {turno.motivoCancelacionNombre}</span>

@@ -11,6 +11,7 @@ import { MisTurnosPage } from "./pages/MisTurnosPage";
 import { AgendaMedicoPage } from "./pages/AgendaMedicoPage";
 import { ConsultaPage } from "./pages/ConsultaPage";
 import { HistorialPage } from "./pages/HistorialPage";
+import { MisAfiliacionesPage } from "./pages/MisAfiliacionesPage";
 import "./App.css";
 
 export default function App() {
@@ -53,6 +54,14 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["PACIENTE"]}>
                 <HistorialPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/mi-cobertura"
+            element={
+              <ProtectedRoute rolesPermitidos={["PACIENTE"]}>
+                <MisAfiliacionesPage />
               </ProtectedRoute>
             }
           />

@@ -3,9 +3,10 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { CalendarBlank, CheckCircle, Stethoscope } from "@phosphor-icons/react";
 import { obtenerDisponibilidad, obtenerMedico } from "../api/medicos";
 import { crearTurno } from "../api/turnos";
+import { misAfiliaciones } from "../api/afiliaciones";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
-import type { Medico } from "../types";
+import type { Afiliacion, Medico } from "../types";
 import "./MedicoDetallePage.css";
 
 function hoyISO(): string {
@@ -24,6 +25,8 @@ export function MedicoDetallePage() {
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
   const [motivoConsulta, setMotivoConsulta] = useState("");
   const [pacienteDni, setPacienteDni] = useState("");
+  const [afiliaciones, setAfiliaciones] = useState<Afiliacion[]>([]);
+  const [afiliacionId, setAfiliacionId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [mensajeOk, setMensajeOk] = useState<string | null>(null);
   const [reservando, setReservando] = useState(false);
@@ -33,6 +36,12 @@ export function MedicoDetallePage() {
       .then(setMedico)
       .catch(() => setError("No se encontró el médico."));
   }, [medicoId]);
+
+  useEffect(() => {
+    if (usuario?.rol === "PACIENTE") {
+      misAfiliaciones().then(setAfiliaciones).catch(() => {});
+    }
+  }, [usuario]);
 
   useEffect(() => {
     setHorarios(null);
@@ -53,11 +62,13 @@ export function MedicoDetallePage() {
         inicio: `${fecha}T${horarioElegido}`,
         motivoConsulta: motivoConsulta || undefined,
         pacienteDni: esStaff ? pacienteDni : undefined,
+        afiliacionId: afiliacionId ? Number(afiliacionId) : undefined,
       });
       setMensajeOk(esStaff ? "¡Turno reservado para ese paciente!" : "¡Turno reservado! Lo vas a ver en \"Mis turnos\".");
       setHorarioElegido(null);
       setMotivoConsulta("");
       setPacienteDni("");
+      setAfiliacionId("");
       const d = await obtenerDisponibilidad(medicoId, fecha);
       setHorarios(d.horariosLibres);
     } catch (err) {
@@ -127,6 +138,17 @@ export function MedicoDetallePage() {
                 <label>
                   DNI del paciente
                   <input className="input" value={pacienteDni} onChange={(e) => setPacienteDni(e.target.value)} />
+                </label>
+              )}
+              {!esStaff && afiliaciones.length > 0 && (
+                <label>
+                  Cobertura (opcional)
+                  <select value={afiliacionId} onChange={(e) => setAfiliacionId(e.target.value)}>
+                    <option value="">Particular (sin cobertura)</option>
+                    {afiliaciones.map((a) => (
+                      <option key={a.id} value={a.id}>{a.obraSocialNombre} — N° {a.numeroAfiliado}</option>
+                    ))}
+                  </select>
                 </label>
               )}
               <label>

@@ -10,6 +10,8 @@ public record CrearTurnoRequest(
         @NotNull LocalDateTime inicio,
         @Size(max = 500) String motivoConsulta,
         /** Solo la usa un médico o admin reservando a nombre de otra persona. */
-        String pacienteDni
+        String pacienteDni,
+        /** Opcional: con qué afiliación propia del paciente se atiende este turno. */
+        Long afiliacionId
 ) {
 }

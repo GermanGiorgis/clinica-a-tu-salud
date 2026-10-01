@@ -4,6 +4,7 @@ import com.germanggiorgis.clinica.dto.CancelarTurnoRequest;
 import com.germanggiorgis.clinica.dto.CrearTurnoRequest;
 import com.germanggiorgis.clinica.dto.DisponibilidadResponse;
 import com.germanggiorgis.clinica.dto.TurnoResponse;
+import com.germanggiorgis.clinica.model.Afiliacion;
 import com.germanggiorgis.clinica.model.EstadoTurno;
 import com.germanggiorgis.clinica.model.HorarioAtencion;
 import com.germanggiorgis.clinica.model.Medico;
@@ -12,6 +13,7 @@ import com.germanggiorgis.clinica.model.Paciente;
 import com.germanggiorgis.clinica.model.Rol;
 import com.germanggiorgis.clinica.model.Turno;
 import com.germanggiorgis.clinica.model.Usuario;
+import com.germanggiorgis.clinica.repository.AfiliacionRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
 import com.germanggiorgis.clinica.repository.MotivoCancelacionRepository;
@@ -55,6 +57,7 @@ public class TurnoService {
     private final MedicoRepository medicoRepository;
     private final PacienteRepository pacienteRepository;
     private final MotivoCancelacionRepository motivoCancelacionRepository;
+    private final AfiliacionRepository afiliacionRepository;
     private final UsuarioContextService usuarioContextService;
 
     @Transactional(readOnly = true)
@@ -131,6 +134,8 @@ public class TurnoService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya tenés un turno reservado en ese horario");
         }
 
+        Afiliacion afiliacion = resolverAfiliacion(request.afiliacionId(), paciente);
+
         Turno turno = Turno.builder()
                 .paciente(paciente)
                 .medico(medico)
@@ -139,6 +144,7 @@ public class TurnoService {
                 .inicio(inicio)
                 .fin(fin)
                 .motivoConsulta(request.motivoConsulta())
+                .afiliacion(afiliacion)
                 .build();
 
         try {
@@ -271,6 +277,19 @@ public class TurnoService {
         }
         return pacienteRepository.findByDni(pacienteDni)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay ningún paciente con ese DNI"));
+    }
+
+    /** Si se indica, tiene que ser una afiliación del mismo paciente que reserva. */
+    private Afiliacion resolverAfiliacion(Long afiliacionId, Paciente paciente) {
+        if (afiliacionId == null) {
+            return null;
+        }
+        Afiliacion afiliacion = afiliacionRepository.findById(afiliacionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Afiliación no encontrada"));
+        if (!afiliacion.getPaciente().getId().equals(paciente.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esa afiliación no es del paciente");
+        }
+        return afiliacion;
     }
 
     private List<HorarioAtencion> horariosVigentes(Long medicoId, LocalDate fecha) {

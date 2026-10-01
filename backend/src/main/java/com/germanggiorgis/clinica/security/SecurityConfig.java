@@ -88,17 +88,18 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**").permitAll()
+                                "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**",
+                                "/api/obras-sociales/**").permitAll()
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

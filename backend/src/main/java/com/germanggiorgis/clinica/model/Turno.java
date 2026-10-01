@@ -59,6 +59,11 @@ public class Turno {
     @JoinColumn(name = "motivo_cancelacion_id")
     private MotivoCancelacion motivoCancelacion;
 
+    /** Opcional: con qué cobertura del paciente se atiende este turno. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "afiliacion_id")
+    private Afiliacion afiliacion;
+
     @NotNull
     @Column(nullable = false)
     private LocalDateTime inicio;

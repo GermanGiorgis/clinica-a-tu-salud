@@ -41,6 +41,7 @@ export interface Turno {
   estado: EstadoTurno;
   motivoConsulta: string | null;
   motivoCancelacionNombre: string | null;
+  obraSocialNombre: string | null;
 }
 
 export interface MotivoCancelacion {
@@ -99,4 +100,20 @@ export interface HistorialEntry {
   medicoNombre: string;
   consultorioNombre: string;
   consulta: Consulta;
+}
+
+export interface ObraSocial {
+  id: number;
+  nombre: string;
+  telefono: string | null;
+}
+
+export interface Afiliacion {
+  id: number;
+  obraSocialId: number;
+  obraSocialNombre: string;
+  numeroAfiliado: string;
+  plan: string | null;
+  vigenteDesde: string;
+  vigenteHasta: string | null;
 }

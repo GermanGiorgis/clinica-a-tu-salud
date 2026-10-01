@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarBlank, CheckCircle, MapPin, XCircle } from "@phosphor-icons/react";
+import { CalendarBlank, CheckCircle, MapPin, ShieldCheck, XCircle } from "@phosphor-icons/react";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { cancelarTurno, confirmarTurno, misTurnos } from "../api/turnos";
 import { extraerError } from "../utils/errores";
@@ -75,6 +75,7 @@ export function MisTurnosPage() {
               <strong>{turno.medicoNombre}</strong>
               <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
               <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
+              <span><ShieldCheck size={15} aria-hidden="true" /> {turno.obraSocialNombre ?? "Particular"}</span>
               {turno.motivoConsulta && <span className="mis-turnos__motivo">"{turno.motivoConsulta}"</span>}
               {turno.motivoCancelacionNombre && (
                 <span className="mis-turnos__motivo">Cancelado por: {turno.motivoCancelacionNombre}</span>

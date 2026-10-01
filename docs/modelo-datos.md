@@ -220,16 +220,16 @@ elegir cualquier médico directamente.
 | Fase | Estado | Alcance | Entidades |
 |---|---|---|---|
 | 1. Turnos | ✅ hecha | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
-| 2. Atención clínica | ✅ hecha (sin cobertura) | Consulta, diagnóstico, receta e historial | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta` |
-| 2b. Cobertura | pendiente | Obra social y afiliación del paciente | `ObraSocial`, `Afiliacion` |
+| 2. Atención clínica | ✅ hecha | Consulta, diagnóstico, receta e historial | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta` |
+| 2b. Cobertura | ✅ hecha | Obra social y afiliación del paciente | `ObraSocial`, `Afiliacion` |
 | 3. Complementos | pendiente | Estudios, encuestas, cobros y panel de métricas | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
 
-La fase 2 implementada cubre consulta → diagnóstico → receta y el historial
-calculado del paciente; se dejó **afuera a propósito** la cobertura
-(`ObraSocial`/`Afiliacion`, y por lo tanto `turno.afiliacion_id`) para no
-mezclar la parte clínica con la administrativa en el mismo lote de cambios.
-La facturación (fase 3) es opcional y se simplificará si el alcance se
-extiende demasiado.
+La fase 2b agrega `ObraSocial` (catálogo que edita el admin) y `Afiliacion`
+(cada paciente gestiona las propias: alta, listado y baja). `turno.afiliacion_id`
+es opcional: al reservar, un paciente puede indicar con qué afiliación propia
+se atiende ese turno concreto; si no indica ninguna, el turno queda sin
+cobertura asociada ("particular"). La facturación (fase 3) es opcional y se
+simplificará si el alcance se extiende demasiado.
 
 ## Estados del turno
 

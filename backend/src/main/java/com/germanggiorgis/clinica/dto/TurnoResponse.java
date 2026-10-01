@@ -17,7 +17,8 @@ public record TurnoResponse(
         LocalDateTime fin,
         EstadoTurno estado,
         String motivoConsulta,
-        String motivoCancelacionNombre
+        String motivoCancelacionNombre,
+        String obraSocialNombre
 ) {
     public static TurnoResponse from(Turno turno) {
         var medicoUsuario = turno.getMedico().getUsuario();
@@ -34,7 +35,8 @@ public record TurnoResponse(
                 turno.getFin(),
                 turno.getEstado(),
                 turno.getMotivoConsulta(),
-                turno.getMotivoCancelacion() != null ? turno.getMotivoCancelacion().getNombre() : null
+                turno.getMotivoCancelacion() != null ? turno.getMotivoCancelacion().getNombre() : null,
+                turno.getAfiliacion() != null ? turno.getAfiliacion().getObraSocial().getNombre() : null
         );
     }
 }
