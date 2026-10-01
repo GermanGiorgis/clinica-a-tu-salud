@@ -20,10 +20,9 @@ interfaz web. No reutiliza código del trabajo original, solo la idea del domini
 
 | Rol | Qué hace |
 |---|---|
-| Paciente | Busca médicos por especialidad, reserva y cancela turnos, consulta su historial y recetas |
-| Médico | Ve su agenda, atiende turnos, carga consulta, diagnóstico y receta |
-| Asistente | Ve la agenda general, gestiona turnos de pacientes (por teléfono o presencial) |
-| Admin | Administra usuarios y catálogos (especialidades, consultorios, horarios) |
+| Paciente | Busca médicos por especialidad o por patología, reserva y cancela sus turnos, consulta su historial y recetas |
+| Médico | Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta |
+| Admin | Administra usuarios y catálogos, y puede gestionar la agenda de cualquier médico igual que el propio médico |
 
 ## Stack previsto
 

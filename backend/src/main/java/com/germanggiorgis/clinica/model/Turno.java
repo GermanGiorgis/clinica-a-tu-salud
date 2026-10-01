@@ -48,7 +48,7 @@ public class Turno {
     @JoinColumn(name = "consultorio_id", nullable = false)
     private Consultorio consultorio;
 
-    /** Usuario que registró el turno: el propio paciente o un asistente. */
+    /** Usuario que registró el turno: el propio paciente, su médico o un admin. */
     @NotNull
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "creado_por_id", nullable = false)

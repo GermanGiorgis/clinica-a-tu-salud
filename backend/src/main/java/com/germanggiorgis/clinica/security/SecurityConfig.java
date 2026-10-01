@@ -29,7 +29,7 @@ import java.util.Map;
  * login pueda ver médicos/especialidades/horarios antes de registrarse --,
  * escritura solo ADMIN. /api/turnos/** requiere estar logueado; quién puede
  * hacer qué con sus turnos se valida en TurnoService (dueño del turno,
- * o asistente/admin), no acá.
+ * médico del turno, o admin), no acá.
  */
 @Configuration
 @EnableWebSecurity
@@ -88,14 +88,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/medicos/**").permitAll()
+                                "/api/medicos/**", "/api/patologias/**").permitAll()
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
-                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**").hasRole("ADMIN")
+                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
+                                "/api/patologias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/especialidades/**", "/api/consultorios/**",
-                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**").hasRole("ADMIN")
+                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
+                                "/api/patologias/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/especialidades/**", "/api/consultorios/**",
-                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**").hasRole("ADMIN")
+                                "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
+                                "/api/patologias/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

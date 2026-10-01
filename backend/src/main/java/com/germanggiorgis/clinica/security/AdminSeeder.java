@@ -12,8 +12,8 @@ import org.springframework.stereotype.Component;
 
 /**
  * Crea un usuario ADMIN de demostración en el primer arranque, si todavía no
- * existe ninguno -- sin esto nadie podría crear médicos o asistentes, porque
- * esa operación requiere ser ADMIN. Es un dato de arranque para desarrollo y
+ * existe ninguno -- sin esto nadie podría crear médicos, porque esa
+ * operación requiere ser ADMIN. Es un dato de arranque para desarrollo y
  * demo, no para producción real (ahí se crearía a mano una sola vez y se
  * cambiaría la contraseña).
  */

@@ -17,6 +17,9 @@ export function Header() {
       <nav className="header__nav">
         <Link to="/medicos">Médicos</Link>
         {estaAutenticado && usuario?.rol === "PACIENTE" && <Link to="/mis-turnos">Mis turnos</Link>}
+        {estaAutenticado && (usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN") && (
+          <Link to="/agenda">Mi agenda</Link>
+        )}
         {estaAutenticado ? (
           <>
             <span className="header__usuario">{usuario?.nombre} · {usuario?.rol}</span>

@@ -19,8 +19,12 @@ public class MedicoService {
 
     private final MedicoRepository medicoRepository;
 
-    public List<MedicoResponse> listar() {
-        return medicoRepository.findAll().stream().map(MedicoResponse::from).toList();
+    /** Si se pasa especialidadId, filtra (lo usa la derivación por patología del frontend). */
+    public List<MedicoResponse> listar(Long especialidadId) {
+        List<Medico> medicos = especialidadId != null
+                ? medicoRepository.findByEspecialidades_Id(especialidadId)
+                : medicoRepository.findAll();
+        return medicos.stream().map(MedicoResponse::from).toList();
     }
 
     public MedicoResponse obtener(Long id) {

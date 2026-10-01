@@ -1,8 +1,10 @@
 import { apiClient } from "./client";
 import type { Disponibilidad, Medico } from "../types";
 
-export async function listarMedicos(): Promise<Medico[]> {
-  const { data } = await apiClient.get<Medico[]>("/api/medicos");
+export async function listarMedicos(especialidadId?: number): Promise<Medico[]> {
+  const { data } = await apiClient.get<Medico[]>("/api/medicos", {
+    params: especialidadId ? { especialidadId } : undefined,
+  });
   return data;
 }
 

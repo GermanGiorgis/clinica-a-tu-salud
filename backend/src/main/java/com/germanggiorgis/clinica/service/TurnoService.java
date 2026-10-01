@@ -80,9 +80,15 @@ public class TurnoService {
         LocalDateTime ahora = LocalDateTime.now();
         List<LocalTime> libres = new ArrayList<>();
         for (HorarioAtencion horario : horarios) {
-            for (LocalTime cursor = horario.getHoraInicio();
-                 !cursor.plusMinutes(horario.getDuracionTurnoMin()).isAfter(horario.getHoraFin());
-                 cursor = cursor.plusMinutes(horario.getDuracionTurnoMin())) {
+            // Se itera por cantidad de slots (no sumando minutos hasta "pasarse" de
+            // horaFin): con un horario que llega cerca de la medianoche, sumarle la
+            // duración a un cursor cercano a las 23:xx puede dar una hora "menor"
+            // (p. ej. 23:45 + 30min = 00:15), que LocalTime nunca ve como "after"
+            // horaFin, y el for original quedaba en loop infinito.
+            long totalMinutos = Duration.between(horario.getHoraInicio(), horario.getHoraFin()).toMinutes();
+            int cantidadSlots = (int) (totalMinutos / horario.getDuracionTurnoMin());
+            for (int i = 0; i < cantidadSlots; i++) {
+                LocalTime cursor = horario.getHoraInicio().plusMinutes((long) i * horario.getDuracionTurnoMin());
                 LocalDateTime inicioSlot = LocalDateTime.of(fecha, cursor);
                 if (!ocupados.contains(cursor) && inicioSlot.isAfter(ahora)) {
                     libres.add(cursor);
@@ -95,11 +101,7 @@ public class TurnoService {
 
     public TurnoResponse crear(CrearTurnoRequest request) {
         Usuario usuarioActual = usuarioContextService.getUsuarioActual();
-        if (usuarioActual.getRol() != Rol.PACIENTE) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un paciente puede reservar un turno para sí mismo");
-        }
-        Paciente paciente = pacienteRepository.findByUsuarioId(usuarioActual.getId())
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil de paciente no encontrado"));
+        Paciente paciente = resolverPacienteParaReserva(usuarioActual, request.pacienteDni());
         Medico medico = medicoRepository.findById(request.medicoId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Médico no encontrado"));
 
@@ -158,19 +160,49 @@ public class TurnoService {
                 .toList();
     }
 
+    /**
+     * Agenda de un médico. El propio médico ve la suya (no puede pedir la de
+     * otro); un admin puede ver la de cualquiera, pero tiene que indicar cuál.
+     */
+    @Transactional(readOnly = true)
+    public List<TurnoResponse> agenda(Long medicoIdParam, LocalDate fecha) {
+        Usuario usuarioActual = usuarioContextService.getUsuarioActual();
+        Long medicoId;
+        if (usuarioActual.getRol() == Rol.MEDICO) {
+            Medico propio = medicoRepository.findByUsuarioId(usuarioActual.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil de médico no encontrado"));
+            if (medicoIdParam != null && !medicoIdParam.equals(propio.getId())) {
+                throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No podés ver la agenda de otro médico");
+            }
+            medicoId = propio.getId();
+        } else if (usuarioActual.getRol() == Rol.ADMIN) {
+            if (medicoIdParam == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indicá qué médico querés ver");
+            }
+            medicoId = medicoIdParam;
+        } else {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un médico o un admin puede ver una agenda");
+        }
+
+        List<Turno> turnos = fecha != null
+                ? turnoRepository.findByMedicoIdAndInicioBetweenOrderByInicioAsc(
+                        medicoId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay())
+                : turnoRepository.findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(
+                        medicoId, LocalDate.now().atStartOfDay());
+        return turnos.stream().map(TurnoResponse::from).toList();
+    }
+
     public TurnoResponse cancelar(Long turnoId, CancelarTurnoRequest request) {
         Usuario usuarioActual = usuarioContextService.getUsuarioActual();
         Turno turno = obtener(turnoId);
 
-        boolean esDueño = turno.getPaciente().getUsuario().getId().equals(usuarioActual.getId());
-        boolean esStaff = usuarioActual.getRol() == Rol.ASISTENTE || usuarioActual.getRol() == Rol.ADMIN;
-        if (!esDueño && !esStaff) {
+        if (!puedeGestionar(usuarioActual, turno)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No podés cancelar el turno de otra persona");
         }
         if (turno.getEstado() != EstadoTurno.RESERVADO && turno.getEstado() != EstadoTurno.CONFIRMADO) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ese turno ya no se puede cancelar");
         }
-        if (esDueño && !esStaff) {
+        if (usuarioActual.getRol() == Rol.PACIENTE) {
             long horasHastaElTurno = Duration.between(LocalDateTime.now(), turno.getInicio()).toHours();
             if (horasHastaElTurno < ANTICIPACION_MINIMA_CANCELACION_HORAS) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -190,9 +222,7 @@ public class TurnoService {
         Usuario usuarioActual = usuarioContextService.getUsuarioActual();
         Turno turno = obtener(turnoId);
 
-        boolean esDueño = turno.getPaciente().getUsuario().getId().equals(usuarioActual.getId());
-        boolean esStaff = usuarioActual.getRol() == Rol.ASISTENTE || usuarioActual.getRol() == Rol.ADMIN;
-        if (!esDueño && !esStaff) {
+        if (!puedeGestionar(usuarioActual, turno)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No podés confirmar el turno de otra persona");
         }
         if (turno.getEstado() != EstadoTurno.RESERVADO) {
@@ -203,23 +233,69 @@ public class TurnoService {
         return TurnoResponse.from(turnoRepository.save(turno));
     }
 
+    public TurnoResponse marcarAusente(Long turnoId) {
+        Usuario usuarioActual = usuarioContextService.getUsuarioActual();
+        Turno turno = obtener(turnoId);
+
+        if (usuarioActual.getRol() == Rol.PACIENTE || !puedeGestionar(usuarioActual, turno)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el médico del turno o un admin puede marcar esto");
+        }
+        if (turno.getEstado() != EstadoTurno.CONFIRMADO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se puede marcar ausente un turno confirmado");
+        }
+
+        turno.setEstado(EstadoTurno.AUSENTE);
+        return TurnoResponse.from(turnoRepository.save(turno));
+    }
+
+    /** Dueño del turno (paciente), médico asignado a él, o cualquier admin. */
+    private boolean puedeGestionar(Usuario usuarioActual, Turno turno) {
+        return switch (usuarioActual.getRol()) {
+            case ADMIN -> true;
+            case MEDICO -> turno.getMedico().getUsuario().getId().equals(usuarioActual.getId());
+            case PACIENTE -> turno.getPaciente().getUsuario().getId().equals(usuarioActual.getId());
+        };
+    }
+
+    /**
+     * El paciente reserva para sí mismo; un médico o admin reserva a nombre
+     * de otra persona indicando su DNI (como pedirlo en mostrador).
+     */
+    private Paciente resolverPacienteParaReserva(Usuario usuarioActual, String pacienteDni) {
+        if (usuarioActual.getRol() == Rol.PACIENTE) {
+            return pacienteRepository.findByUsuarioId(usuarioActual.getId())
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Perfil de paciente no encontrado"));
+        }
+        if (pacienteDni == null || pacienteDni.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta el DNI del paciente");
+        }
+        return pacienteRepository.findByDni(pacienteDni)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay ningún paciente con ese DNI"));
+    }
+
     private List<HorarioAtencion> horariosVigentes(Long medicoId, LocalDate fecha) {
         return horarioAtencionRepository.findByMedicoIdAndDiaSemana(medicoId, fecha.getDayOfWeek()).stream()
                 .filter(h -> !fecha.isBefore(h.getVigenteDesde()) && (h.getVigenteHasta() == null || !fecha.isAfter(h.getVigenteHasta())))
                 .toList();
     }
 
-    /** La hora pedida tiene que caer justo en uno de los slots que genera el horario. */
+    /**
+     * La hora pedida tiene que caer justo en uno de los slots que genera el
+     * horario. Se compara todo con Duration.between en vez de sumarle
+     * minutos a `hora` (ver el comentario en disponibilidad()): cerca de la
+     * medianoche esa suma puede "envolver" a una hora menor y colar un slot
+     * que en realidad termina después de horaFin.
+     */
     private boolean encajaEnHorario(LocalTime hora, HorarioAtencion horario) {
-        if (hora.isBefore(horario.getHoraInicio())) {
+        if (hora.isBefore(horario.getHoraInicio()) || !hora.isBefore(horario.getHoraFin())) {
             return false;
         }
         long minutosDesdeInicio = Duration.between(horario.getHoraInicio(), hora).toMinutes();
         if (minutosDesdeInicio % horario.getDuracionTurnoMin() != 0) {
             return false;
         }
-        LocalTime finSlot = hora.plusMinutes(horario.getDuracionTurnoMin());
-        return !finSlot.isAfter(horario.getHoraFin());
+        long minutosHastaFin = Duration.between(hora, horario.getHoraFin()).toMinutes();
+        return minutosHastaFin >= horario.getDuracionTurnoMin();
     }
 
     private Turno obtener(Long id) {

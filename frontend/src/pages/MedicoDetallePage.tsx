@@ -22,6 +22,7 @@ export function MedicoDetallePage() {
   const [horarios, setHorarios] = useState<string[] | null>(null);
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
   const [motivoConsulta, setMotivoConsulta] = useState("");
+  const [pacienteDni, setPacienteDni] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [mensajeOk, setMensajeOk] = useState<string | null>(null);
   const [reservando, setReservando] = useState(false);
@@ -50,10 +51,12 @@ export function MedicoDetallePage() {
         medicoId,
         inicio: `${fecha}T${horarioElegido}`,
         motivoConsulta: motivoConsulta || undefined,
+        pacienteDni: esStaff ? pacienteDni : undefined,
       });
-      setMensajeOk("¡Turno reservado! Lo vas a ver en \"Mis turnos\".");
+      setMensajeOk(esStaff ? "¡Turno reservado para ese paciente!" : "¡Turno reservado! Lo vas a ver en \"Mis turnos\".");
       setHorarioElegido(null);
       setMotivoConsulta("");
+      setPacienteDni("");
       const d = await obtenerDisponibilidad(medicoId, fecha);
       setHorarios(d.horariosLibres);
     } catch (err) {
@@ -66,6 +69,9 @@ export function MedicoDetallePage() {
   if (!medico) {
     return <main className="page">{error ? <p className="auth-form__error">{error}</p> : <p>Cargando…</p>}</main>;
   }
+
+  const esStaff = usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN";
+  const puedeReservar = usuario?.rol === "PACIENTE" || esStaff;
 
   return (
     <main className="page">
@@ -106,16 +112,22 @@ export function MedicoDetallePage() {
               <Link to="/registro">crear una cuenta</Link>.
             </p>
           )}
-          {estaAutenticado && usuario?.rol !== "PACIENTE" && (
-            <p>Solo una cuenta de paciente puede reservar turnos.</p>
+          {estaAutenticado && !puedeReservar && (
+            <p>Tu cuenta no puede reservar turnos.</p>
           )}
-          {estaAutenticado && usuario?.rol === "PACIENTE" && (
+          {estaAutenticado && puedeReservar && (
             <>
+              {esStaff && (
+                <label>
+                  DNI del paciente
+                  <input value={pacienteDni} onChange={(e) => setPacienteDni(e.target.value)} />
+                </label>
+              )}
               <label>
                 Motivo de la consulta (opcional)
                 <textarea value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} rows={2} />
               </label>
-              <button type="button" onClick={reservar} disabled={reservando}>
+              <button type="button" onClick={reservar} disabled={reservando || (esStaff && !pacienteDni)}>
                 {reservando ? "Reservando…" : `Reservar ${fecha} ${horarioElegido.slice(0, 5)}`}
               </button>
             </>
@@ -126,7 +138,8 @@ export function MedicoDetallePage() {
       {error && <p className="auth-form__error">{error}</p>}
       {mensajeOk && (
         <p className="medico-detalle__ok">
-          {mensajeOk} <button type="button" onClick={() => navigate("/mis-turnos")}>Ver mis turnos</button>
+          {mensajeOk}{" "}
+          {!esStaff && <button type="button" onClick={() => navigate("/mis-turnos")}>Ver mis turnos</button>}
         </p>
       )}
     </main>

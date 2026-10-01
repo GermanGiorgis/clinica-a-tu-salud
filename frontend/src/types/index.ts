@@ -1,4 +1,4 @@
-export type Rol = "PACIENTE" | "MEDICO" | "ASISTENTE" | "ADMIN";
+export type Rol = "PACIENTE" | "MEDICO" | "ADMIN";
 
 export type EstadoTurno = "RESERVADO" | "CONFIRMADO" | "ATENDIDO" | "AUSENTE" | "CANCELADO";
 
@@ -47,4 +47,10 @@ export interface MotivoCancelacion {
   id: number;
   nombre: string;
   descripcion: string | null;
+}
+
+export interface Patologia {
+  id: number;
+  nombre: string;
+  especialidad: Especialidad;
 }

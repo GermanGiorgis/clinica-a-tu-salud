@@ -8,6 +8,7 @@ import { RegistroPage } from "./pages/RegistroPage";
 import { MedicosPage } from "./pages/MedicosPage";
 import { MedicoDetallePage } from "./pages/MedicoDetallePage";
 import { MisTurnosPage } from "./pages/MisTurnosPage";
+import { AgendaMedicoPage } from "./pages/AgendaMedicoPage";
 import "./App.css";
 
 export default function App() {
@@ -26,6 +27,14 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["PACIENTE"]}>
                 <MisTurnosPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/agenda"
+            element={
+              <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
+                <AgendaMedicoPage />
               </ProtectedRoute>
             }
           />

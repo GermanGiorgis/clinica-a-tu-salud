@@ -24,8 +24,8 @@ public class MedicoController {
     private final TurnoService turnoService;
 
     @GetMapping
-    public List<MedicoResponse> listar() {
-        return medicoService.listar();
+    public List<MedicoResponse> listar(@RequestParam(required = false) Long especialidadId) {
+        return medicoService.listar(especialidadId);
     }
 
     @GetMapping("/{id}")

@@ -6,10 +6,12 @@ import com.germanggiorgis.clinica.dto.TurnoResponse;
 import com.germanggiorgis.clinica.service.TurnoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -22,6 +24,15 @@ public class TurnoController {
     @GetMapping("/mios")
     public List<TurnoResponse> misTurnos() {
         return turnoService.misTurnos();
+    }
+
+    /** Agenda de un médico: el propio médico ve la suya, el admin tiene que indicar medicoId. */
+    @GetMapping("/agenda")
+    public List<TurnoResponse> agenda(
+            @RequestParam(required = false) Long medicoId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
+    ) {
+        return turnoService.agenda(medicoId, fecha);
     }
 
     @PostMapping
@@ -37,5 +48,10 @@ public class TurnoController {
     @PatchMapping("/{id}/confirmar")
     public TurnoResponse confirmar(@PathVariable Long id) {
         return turnoService.confirmar(id);
+    }
+
+    @PatchMapping("/{id}/marcar-ausente")
+    public TurnoResponse marcarAusente(@PathVariable Long id) {
+        return turnoService.marcarAusente(id);
     }
 }

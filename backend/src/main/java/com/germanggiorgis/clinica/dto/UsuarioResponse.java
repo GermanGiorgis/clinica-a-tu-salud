@@ -11,7 +11,7 @@ public record UsuarioResponse(
         String telefono,
         Rol rol,
         boolean activo,
-        /** Id de su Paciente o Medico (null para ASISTENTE/ADMIN, que no tienen perfil propio). */
+        /** Id de su Paciente o Medico (null para ADMIN, que no tiene perfil propio). */
         Long perfilId
 ) {
     public static UsuarioResponse from(Usuario usuario) {

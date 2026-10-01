@@ -5,15 +5,11 @@ const ROLES = [
   },
   {
     nombre: "Médico",
-    detalle: "Ve su agenda, atiende turnos, carga consulta, diagnóstico y receta.",
-  },
-  {
-    nombre: "Asistente",
-    detalle: "Ve la agenda general y gestiona turnos de pacientes.",
+    detalle: "Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta.",
   },
   {
     nombre: "Admin",
-    detalle: "Administra usuarios y catálogos (especialidades, consultorios, horarios).",
+    detalle: "Administra usuarios y catálogos, y puede gestionar la agenda de cualquier médico.",
   },
 ];
 

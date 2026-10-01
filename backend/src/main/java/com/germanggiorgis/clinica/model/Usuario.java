@@ -21,8 +21,8 @@ import java.time.LocalDateTime;
 
 /**
  * Cuenta de acceso al sistema. El rol determina qué perfil tiene asociado:
- * PACIENTE -> {@link Paciente}, MEDICO -> {@link Medico}. ASISTENTE y ADMIN
- * no tienen datos propios, son solo un rol.
+ * PACIENTE -> {@link Paciente}, MEDICO -> {@link Medico}. ADMIN no tiene
+ * datos propios, es solo un rol.
  *
  * El email es único sin distinguir mayúsculas (índice funcional en la
  * migración); acá no se marca @Column(unique = true) porque esa unicidad la

@@ -30,6 +30,7 @@ erDiagram
     USUARIO ||--o| MEDICO : "tiene perfil"
     USUARIO ||--o{ TURNO : "registra"
     MEDICO }o--o{ ESPECIALIDAD : "ejerce"
+    ESPECIALIDAD ||--o{ PATOLOGIA : "clasifica"
     MEDICO ||--o{ HORARIO_ATENCION : "define"
     CONSULTORIO ||--o{ HORARIO_ATENCION : "aloja"
     PACIENTE ||--o{ TURNO : "reserva"
@@ -55,7 +56,7 @@ erDiagram
         bigint id PK
         string email UK
         string password_hash
-        string rol "PACIENTE, MEDICO, ASISTENTE, ADMIN"
+        string rol "PACIENTE, MEDICO, ADMIN"
         string nombre
         string apellido
         string telefono
@@ -77,6 +78,11 @@ erDiagram
         bigint id PK
         string nombre UK
         string descripcion
+    }
+    PATOLOGIA {
+        bigint id PK
+        string nombre UK
+        bigint especialidad_id FK
     }
     CONSULTORIO {
         bigint id PK
@@ -200,14 +206,20 @@ erDiagram
     }
 ```
 
-`ASISTENTE` y `ADMIN` no tienen tabla propia: son valores de `USUARIO.rol` y no
-guardan datos específicos de su rol.
+`ADMIN` no tiene tabla propia: es un valor de `USUARIO.rol` y no guarda datos
+específicos de su rol.
+
+`PATOLOGIA` es un catálogo que edita el admin: cada síntoma/patología apunta a
+una `ESPECIALIDAD`. Un paciente que no sabe a qué especialista ir elige "qué
+le pasa" y el sistema le filtra los médicos de esa especialidad (ver regla 13).
+Es solo una ayuda de navegación, no una restricción: el paciente igual puede
+elegir cualquier médico directamente.
 
 ## Fases
 
 | Fase | Alcance | Entidades |
 |---|---|---|
-| 1. Turnos | Login con roles, catálogos, agenda y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
+| 1. Turnos | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
 | 2. Atención clínica | Consulta, diagnóstico, receta, historial y cobertura | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta`, `ObraSocial`, `Afiliacion` |
 | 3. Complementos | Estudios, encuestas, cobros y panel de métricas | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
 
@@ -222,7 +234,7 @@ tabla editable.
 
 ```mermaid
 stateDiagram-v2
-    [*] --> RESERVADO : paciente o asistente reserva
+    [*] --> RESERVADO : paciente, médico o admin reserva
     RESERVADO --> CONFIRMADO : confirma
     RESERVADO --> CANCELADO : cancela
     CONFIRMADO --> ATENDIDO : el médico carga la consulta
@@ -235,10 +247,10 @@ stateDiagram-v2
 
 | Transición | Quién puede |
 |---|---|
-| Reservar | Paciente (para sí mismo), asistente |
-| Confirmar | Paciente (el propio), asistente |
-| Cancelar | Paciente (con anticipación mínima), asistente, admin |
-| Marcar ausente | Asistente |
+| Reservar | Paciente (para sí mismo); médico o admin, a nombre de un paciente (por DNI) |
+| Confirmar | Paciente (el propio); médico (de su agenda); admin (cualquiera) |
+| Cancelar | Paciente (con anticipación mínima); médico (de su agenda) y admin (cualquiera), sin esa restricción |
+| Marcar ausente | Médico (de su agenda), admin |
 | Atendido | Médico del turno, al cargar la consulta |
 
 ## Reglas de negocio
@@ -257,25 +269,32 @@ stateDiagram-v2
 4. No se reserva en el pasado ni más allá de una ventana configurable
    (por ejemplo, 60 días).
 5. El paciente solo puede cancelar con una anticipación mínima configurable
-   (por ejemplo, 2 horas). Asistente y admin pueden cancelar siempre. Toda
+   (por ejemplo, 2 horas). El médico (sus propios turnos) y el admin
+   (cualquiera) pueden cancelar siempre, sin esa restricción. Toda
    cancelación exige un `MotivoCancelacion`.
 6. Los horarios de un mismo médico no se pisan entre sí, y un consultorio no
    puede tener dos médicos en el mismo horario.
+7. Un paciente puede elegir una `Patologia` al buscar turno; el sistema la
+   traduce a su `Especialidad` y filtra los médicos que la ejercen. Es solo
+   un filtro de ayuda: el paciente igual puede elegir cualquier médico
+   directamente, sin pasar por una patología.
 
 **Atención clínica**
 
-7. La `Consulta` solo existe para turnos confirmados y es 1:1 con el turno.
+8. La `Consulta` solo existe para turnos confirmados y es 1:1 con el turno.
    Crearla pasa el turno a `ATENDIDO`. Solo el médico del turno la crea o edita.
-8. El historial del paciente **no es una tabla**: se calcula a partir de sus
+9. El historial del paciente **no es una tabla**: se calcula a partir de sus
    consultas, diagnósticos, recetas y estudios.
 
 **Acceso a los datos (mínimo privilegio)**
 
-9. El **paciente** solo ve sus propios datos.
-10. El **médico** ve el historial de los pacientes con los que tiene o tuvo turnos.
-11. El **asistente** ve la agenda y los datos administrativos, pero **no**
-    consultas, diagnósticos ni recetas.
-12. El **admin** gestiona usuarios y catálogos.
+10. El **paciente** solo ve y gestiona sus propios turnos.
+11. El **médico** ve el historial de los pacientes con los que tiene o tuvo
+    turnos, y gestiona (reserva, confirma, cancela, marca ausente) los turnos
+    de su propia agenda.
+12. El **admin** gestiona usuarios, catálogos, y puede gestionar la agenda y
+    los turnos de cualquier médico — las mismas acciones que tiene el médico
+    sobre la suya.
 
 ## Cambios respecto al trabajo original
 
@@ -283,7 +302,7 @@ stateDiagram-v2
 |---|---|
 | Todas las referencias como `Long` (`pacienteId`, `medicoId`...) | Claves foráneas reales con `@ManyToOne` |
 | `EstadoTurno` como tabla con CRUD | Enum con máquina de estados |
-| `Asistente` como entidad | Rol de `Usuario` (no tiene datos propios) |
+| `Asistente` como entidad, con su propio CRUD | Eliminado: hacía lo mismo que `Admin`, que ya puede gestionar todo el sistema de turnos |
 | `HistorialPaciente` como tabla de eventos | Se calcula desde consultas, recetas y estudios |
 | `Medico.especialidad` como `String` | Relación N:M con `Especialidad` |
 | `Turno` con `fecha` y `hora` separadas | `inicio` y `fin` como `LocalDateTime` |

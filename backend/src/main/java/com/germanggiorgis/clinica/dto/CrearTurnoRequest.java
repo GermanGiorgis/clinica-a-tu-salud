@@ -8,6 +8,8 @@ import java.time.LocalDateTime;
 public record CrearTurnoRequest(
         @NotNull Long medicoId,
         @NotNull LocalDateTime inicio,
-        @Size(max = 500) String motivoConsulta
+        @Size(max = 500) String motivoConsulta,
+        /** Solo la usa un médico o admin reservando a nombre de otra persona. */
+        String pacienteDni
 ) {
 }
