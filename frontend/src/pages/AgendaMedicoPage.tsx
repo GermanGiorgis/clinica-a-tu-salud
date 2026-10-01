@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
@@ -139,9 +140,15 @@ export function AgendaMedicoPage() {
                 </button>
               )}
               {turno.estado === "CONFIRMADO" && (
-                <button type="button" disabled={procesando === turno.id} onClick={() => handleAusente(turno.id)}>
-                  Marcar ausente
-                </button>
+                <>
+                  <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }}>Cargar consulta</Link>
+                  <button type="button" disabled={procesando === turno.id} onClick={() => handleAusente(turno.id)}>
+                    Marcar ausente
+                  </button>
+                </>
+              )}
+              {turno.estado === "ATENDIDO" && (
+                <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }}>Ver consulta</Link>
               )}
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>

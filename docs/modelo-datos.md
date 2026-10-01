@@ -217,13 +217,17 @@ elegir cualquier médico directamente.
 
 ## Fases
 
-| Fase | Alcance | Entidades |
-|---|---|---|
-| 1. Turnos | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
-| 2. Atención clínica | Consulta, diagnóstico, receta, historial y cobertura | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta`, `ObraSocial`, `Afiliacion` |
-| 3. Complementos | Estudios, encuestas, cobros y panel de métricas | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
+| Fase | Estado | Alcance | Entidades |
+|---|---|---|---|
+| 1. Turnos | ✅ hecha | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
+| 2. Atención clínica | ✅ hecha (sin cobertura) | Consulta, diagnóstico, receta e historial | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta` |
+| 2b. Cobertura | pendiente | Obra social y afiliación del paciente | `ObraSocial`, `Afiliacion` |
+| 3. Complementos | pendiente | Estudios, encuestas, cobros y panel de métricas | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
 
-La columna `turno.afiliacion_id` se agrega con una migración en la fase 2.
+La fase 2 implementada cubre consulta → diagnóstico → receta y el historial
+calculado del paciente; se dejó **afuera a propósito** la cobertura
+(`ObraSocial`/`Afiliacion`, y por lo tanto `turno.afiliacion_id`) para no
+mezclar la parte clínica con la administrativa en el mismo lote de cambios.
 La facturación (fase 3) es opcional y se simplificará si el alcance se
 extiende demasiado.
 
@@ -282,9 +286,12 @@ stateDiagram-v2
 **Atención clínica**
 
 8. La `Consulta` solo existe para turnos confirmados y es 1:1 con el turno.
-   Crearla pasa el turno a `ATENDIDO`. Solo el médico del turno la crea o edita.
+   Crearla pasa el turno a `ATENDIDO`. Solo el médico del turno (o un admin)
+   la carga; no se edita después. Una `Receta` cuelga de una Consulta ya
+   cargada y la emite esa misma persona.
 9. El historial del paciente **no es una tabla**: se calcula a partir de sus
-   consultas, diagnósticos, recetas y estudios.
+   turnos `ATENDIDO` (vía la Consulta de cada uno) — no incluye estudios
+   todavía, eso es fase 3.
 
 **Acceso a los datos (mínimo privilegio)**
 

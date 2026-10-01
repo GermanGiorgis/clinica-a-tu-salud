@@ -9,6 +9,8 @@ import { MedicosPage } from "./pages/MedicosPage";
 import { MedicoDetallePage } from "./pages/MedicoDetallePage";
 import { MisTurnosPage } from "./pages/MisTurnosPage";
 import { AgendaMedicoPage } from "./pages/AgendaMedicoPage";
+import { ConsultaPage } from "./pages/ConsultaPage";
+import { HistorialPage } from "./pages/HistorialPage";
 import "./App.css";
 
 export default function App() {
@@ -35,6 +37,22 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
                 <AgendaMedicoPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/turnos/:turnoId/consulta"
+            element={
+              <ProtectedRoute>
+                <ConsultaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/historial"
+            element={
+              <ProtectedRoute rolesPermitidos={["PACIENTE"]}>
+                <HistorialPage />
               </ProtectedRoute>
             }
           />

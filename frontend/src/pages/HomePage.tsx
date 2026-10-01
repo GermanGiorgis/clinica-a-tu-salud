@@ -14,15 +14,15 @@ const ROLES = [
 ];
 
 const FASES = [
-  { nombre: "Turnos", detalle: "login, roles, agenda y reserva", activa: true },
-  { nombre: "Atención clínica", detalle: "consulta, diagnóstico, receta e historial", activa: false },
-  { nombre: "Complementos", detalle: "estudios, encuestas, cobros y métricas", activa: false },
+  { nombre: "Turnos", detalle: "login, roles, agenda y reserva", hecha: true },
+  { nombre: "Atención clínica", detalle: "consulta, diagnóstico, receta e historial", hecha: true },
+  { nombre: "Complementos", detalle: "estudios, encuestas, cobros y métricas", hecha: false },
 ];
 
 export function HomePage() {
   return (
     <main className="page">
-      <span className="page__estado">En construcción — Fase 1</span>
+      <span className="page__estado">En construcción — Fases 1 y 2 hechas</span>
       <h1>Clínica</h1>
       <p className="page__origen">
         Sistema web de gestión de turnos y atención médica. Los pacientes
@@ -43,9 +43,9 @@ export function HomePage() {
       <h2>Fases</h2>
       <ol className="fases">
         {FASES.map((fase) => (
-          <li key={fase.nombre} data-activa={fase.activa}>
+          <li key={fase.nombre} data-hecha={fase.hecha}>
             {fase.nombre} — {fase.detalle}
-            {fase.activa && " (en curso)"}
+            {fase.hecha ? " (hecha)" : " (pendiente)"}
           </li>
         ))}
       </ol>

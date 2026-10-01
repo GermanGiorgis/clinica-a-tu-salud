@@ -54,3 +54,49 @@ export interface Patologia {
   nombre: string;
   especialidad: Especialidad;
 }
+
+export interface Diagnostico {
+  id: number;
+  descripcion: string;
+  codigoCie10: string | null;
+}
+
+export interface Medicamento {
+  id: number;
+  nombre: string;
+  presentacion: string | null;
+}
+
+export interface ItemReceta {
+  id: number;
+  medicamentoId: number;
+  medicamentoNombre: string;
+  dosis: string;
+  frecuencia: string;
+  duracionDias: number;
+}
+
+export interface Receta {
+  id: number;
+  consultaId: number;
+  observaciones: string | null;
+  emitidaEn: string;
+  items: ItemReceta[];
+}
+
+export interface Consulta {
+  id: number;
+  turnoId: number;
+  notas: string | null;
+  creadaEn: string;
+  diagnosticos: Diagnostico[];
+  recetas: Receta[];
+}
+
+export interface HistorialEntry {
+  turnoId: number;
+  inicio: string;
+  medicoNombre: string;
+  consultorioNombre: string;
+  consulta: Consulta;
+}

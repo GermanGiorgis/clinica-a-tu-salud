@@ -60,6 +60,6 @@
   margin-bottom: 0.3rem;
 }
 
-.fases li[data-activa="true"] {
+.fases li[data-hecha="true"] {
   font-weight: 600;
 }

@@ -88,17 +88,17 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET,
                                 "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/medicos/**", "/api/patologias/**").permitAll()
+                                "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**").permitAll()
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

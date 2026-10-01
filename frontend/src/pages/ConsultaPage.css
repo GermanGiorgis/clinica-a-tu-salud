@@ -1,0 +1,64 @@
+.consulta__info {
+  opacity: 0.75;
+  margin-top: 0.25rem;
+}
+
+.consulta__form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 520px;
+  margin-top: 1rem;
+}
+
+.consulta__form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.consulta__fila {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.consulta__fila input,
+.consulta__fila select {
+  flex: 1;
+  min-width: 100px;
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.consulta__guardar {
+  align-self: flex-start;
+}
+
+.consulta__detalle {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.consulta__cie10 {
+  opacity: 0.7;
+}
+
+.consulta__receta {
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.consulta__observaciones {
+  font-style: italic;
+  opacity: 0.85;
+}

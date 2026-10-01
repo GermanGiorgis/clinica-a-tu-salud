@@ -1,0 +1,43 @@
+.historial {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.historial__item {
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.historial__item header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.historial__notas {
+  opacity: 0.9;
+}
+
+.historial__cie10 {
+  opacity: 0.7;
+}
+
+.historial__receta {
+  border-left: 2px solid currentColor;
+  padding-left: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.historial__observaciones {
+  font-style: italic;
+  opacity: 0.85;
+}
