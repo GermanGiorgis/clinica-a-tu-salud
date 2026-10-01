@@ -14,6 +14,7 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.development
 application-local.properties
 application-local.yml
 

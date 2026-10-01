@@ -1,0 +1,43 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid currentColor;
+}
+
+.header__marca {
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-decoration: none;
+  color: inherit;
+}
+
+.header__nav {
+  display: flex;
+  align-items: center;
+  gap: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.header__nav a {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.header__nav a:hover {
+  opacity: 1;
+  text-decoration: underline;
+}
+
+.header__usuario {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.header__nav button {
+  font: inherit;
+  cursor: pointer;
+}

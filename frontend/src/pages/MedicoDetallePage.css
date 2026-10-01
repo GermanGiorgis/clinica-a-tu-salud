@@ -1,0 +1,86 @@
+.medico-detalle__info {
+  opacity: 0.8;
+  margin-top: 0.25rem;
+}
+
+.medico-detalle__fecha {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: fit-content;
+  margin: 1.5rem 0;
+  font-size: 0.9rem;
+}
+
+.medico-detalle__fecha input {
+  font: inherit;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+.medico-detalle__horarios {
+  list-style: none;
+  padding: 0;
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.medico-detalle__horarios button {
+  font: inherit;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.medico-detalle__horarios button.activo {
+  background: currentColor;
+}
+
+.medico-detalle__horarios button.activo {
+  color: Canvas;
+}
+
+.medico-detalle__reserva {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 420px;
+}
+
+.medico-detalle__reserva textarea {
+  font: inherit;
+  padding: 0.5rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  resize: vertical;
+}
+
+.medico-detalle__reserva button,
+.medico-detalle__ok button {
+  font: inherit;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.medico-detalle__ok {
+  margin-top: 1rem;
+}

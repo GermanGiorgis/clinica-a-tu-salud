@@ -1,0 +1,29 @@
+.medicos-lista {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0 0;
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.medicos-lista__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.medicos-lista__card:hover {
+  opacity: 0.85;
+}
+
+.medicos-lista__matricula,
+.medicos-lista__especialidades {
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
