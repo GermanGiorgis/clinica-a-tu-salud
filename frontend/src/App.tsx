@@ -12,6 +12,7 @@ import { AgendaMedicoPage } from "./pages/AgendaMedicoPage";
 import { ConsultaPage } from "./pages/ConsultaPage";
 import { HistorialPage } from "./pages/HistorialPage";
 import { MisAfiliacionesPage } from "./pages/MisAfiliacionesPage";
+import { FacturaPage } from "./pages/FacturaPage";
 import "./App.css";
 
 export default function App() {
@@ -62,6 +63,14 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["PACIENTE"]}>
                 <MisAfiliacionesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/turnos/:turnoId/factura"
+            element={
+              <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
+                <FacturaPage />
               </ProtectedRoute>
             }
           />

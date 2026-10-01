@@ -85,6 +85,24 @@ export interface Receta {
   items: ItemReceta[];
 }
 
+export type EstadoOrdenEstudio = "SOLICITADA" | "COMPLETADA";
+
+export interface ResultadoEstudio {
+  id: number;
+  resultado: string;
+  cargadoEn: string;
+}
+
+export interface OrdenEstudio {
+  id: number;
+  estudioId: number;
+  estudioNombre: string;
+  estado: EstadoOrdenEstudio;
+  indicaciones: string | null;
+  emitidaEn: string;
+  resultado: ResultadoEstudio | null;
+}
+
 export interface Consulta {
   id: number;
   turnoId: number;
@@ -92,6 +110,37 @@ export interface Consulta {
   creadaEn: string;
   diagnosticos: Diagnostico[];
   recetas: Receta[];
+  ordenesEstudio: OrdenEstudio[];
+}
+
+export interface Estudio {
+  id: number;
+  nombre: string;
+  tipo: string;
+}
+
+export interface Encuesta {
+  id: number;
+  puntaje: number;
+  comentario: string | null;
+  creadaEn: string;
+}
+
+export type MedioPago = "EFECTIVO" | "TARJETA" | "TRANSFERENCIA" | "OBRA_SOCIAL";
+
+export interface ItemFactura {
+  id: number;
+  descripcion: string;
+  importe: number;
+}
+
+export interface Factura {
+  id: number;
+  turnoId: number;
+  total: number;
+  medioPago: MedioPago;
+  emitidaEn: string;
+  items: ItemFactura[];
 }
 
 export interface HistorialEntry {

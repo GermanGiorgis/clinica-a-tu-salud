@@ -4,8 +4,11 @@ Sistema web de gestión de turnos y atención médica. Los pacientes reservan
 online, los médicos administran su agenda y cargan la historia clínica, y el
 personal administrativo coordina el día a día de la clínica.
 
-**Estado:** en desarrollo. Fases 1 y 2 hechas: autenticación con roles, reserva
-de turnos y atención clínica (consulta, diagnóstico, receta, historial).
+**Estado:** fases 1, 2 y 3 hechas: autenticación con roles, reserva de turnos,
+atención clínica (consulta, diagnóstico, receta, historial), cobertura (obra
+social y afiliación) y complementos (estudios, encuesta de satisfacción y
+facturación simplificada), con una identidad visual propia. Falta agregar
+tests automáticos a la capa de servicios.
 
 ## Origen
 

@@ -4,7 +4,9 @@ import com.germanggiorgis.clinica.dto.ConsultaResponse;
 import com.germanggiorgis.clinica.dto.CrearConsultaRequest;
 import com.germanggiorgis.clinica.dto.DiagnosticoResponse;
 import com.germanggiorgis.clinica.dto.ItemRecetaResponse;
+import com.germanggiorgis.clinica.dto.OrdenEstudioResponse;
 import com.germanggiorgis.clinica.dto.RecetaResponse;
+import com.germanggiorgis.clinica.dto.ResultadoEstudioResponse;
 import com.germanggiorgis.clinica.model.Consulta;
 import com.germanggiorgis.clinica.model.Diagnostico;
 import com.germanggiorgis.clinica.model.EstadoTurno;
@@ -14,7 +16,9 @@ import com.germanggiorgis.clinica.model.Usuario;
 import com.germanggiorgis.clinica.repository.ConsultaRepository;
 import com.germanggiorgis.clinica.repository.DiagnosticoRepository;
 import com.germanggiorgis.clinica.repository.ItemRecetaRepository;
+import com.germanggiorgis.clinica.repository.OrdenEstudioRepository;
 import com.germanggiorgis.clinica.repository.RecetaRepository;
+import com.germanggiorgis.clinica.repository.ResultadoEstudioRepository;
 import com.germanggiorgis.clinica.repository.TurnoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -38,6 +42,8 @@ public class ConsultaService {
     private final DiagnosticoRepository diagnosticoRepository;
     private final RecetaRepository recetaRepository;
     private final ItemRecetaRepository itemRecetaRepository;
+    private final OrdenEstudioRepository ordenEstudioRepository;
+    private final ResultadoEstudioRepository resultadoEstudioRepository;
     private final TurnoRepository turnoRepository;
     private final UsuarioContextService usuarioContextService;
 
@@ -78,7 +84,7 @@ public class ConsultaService {
         return armarCompleta(consulta);
     }
 
-    /** Arma la respuesta completa (diagnósticos + recetas con sus ítems); la usa también HistorialService. */
+    /** Arma la respuesta completa (diagnósticos, recetas con ítems, órdenes con resultado); la usa también HistorialService. */
     public ConsultaResponse armarCompleta(Consulta consulta) {
         List<DiagnosticoResponse> diagnosticos = diagnosticoRepository.findByConsultaId(consulta.getId()).stream()
                 .map(DiagnosticoResponse::from)
@@ -88,7 +94,12 @@ public class ConsultaService {
                         .map(ItemRecetaResponse::from)
                         .toList()))
                 .toList();
-        return ConsultaResponse.from(consulta, diagnosticos, recetas);
+        List<OrdenEstudioResponse> ordenesEstudio = ordenEstudioRepository.findByConsultaId(consulta.getId()).stream()
+                .map(orden -> OrdenEstudioResponse.from(orden, resultadoEstudioRepository.findByOrdenEstudioId(orden.getId())
+                        .map(ResultadoEstudioResponse::from)
+                        .orElse(null)))
+                .toList();
+        return ConsultaResponse.from(consulta, diagnosticos, recetas, ordenesEstudio);
     }
 
     private void verificarEsMedicoDelTurnoOAdmin(Usuario actual, Turno turno) {

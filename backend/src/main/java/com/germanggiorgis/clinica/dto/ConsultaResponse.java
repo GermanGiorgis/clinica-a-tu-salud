@@ -11,16 +11,23 @@ public record ConsultaResponse(
         String notas,
         LocalDateTime creadaEn,
         List<DiagnosticoResponse> diagnosticos,
-        List<RecetaResponse> recetas
+        List<RecetaResponse> recetas,
+        List<OrdenEstudioResponse> ordenesEstudio
 ) {
-    public static ConsultaResponse from(Consulta consulta, List<DiagnosticoResponse> diagnosticos, List<RecetaResponse> recetas) {
+    public static ConsultaResponse from(
+            Consulta consulta,
+            List<DiagnosticoResponse> diagnosticos,
+            List<RecetaResponse> recetas,
+            List<OrdenEstudioResponse> ordenesEstudio
+    ) {
         return new ConsultaResponse(
                 consulta.getId(),
                 consulta.getTurno().getId(),
                 consulta.getNotas(),
                 consulta.getCreadaEn(),
                 diagnosticos,
-                recetas
+                recetas,
+                ordenesEstudio
         );
     }
 }

@@ -22,7 +22,8 @@ const ROLES = [
 const FASES = [
   { nombre: "Turnos", detalle: "login, roles, agenda y reserva", hecha: true },
   { nombre: "Atención clínica", detalle: "consulta, diagnóstico, receta e historial", hecha: true },
-  { nombre: "Complementos", detalle: "estudios, encuestas, cobros y métricas", hecha: false },
+  { nombre: "Cobertura", detalle: "obra social y afiliación del paciente", hecha: true },
+  { nombre: "Complementos", detalle: "estudios, encuesta de satisfacción y facturación", hecha: true },
 ];
 
 export function HomePage() {
@@ -30,7 +31,7 @@ export function HomePage() {
     <main className="page">
       <section className="home-hero">
         <span className="home-hero__badge">
-          <FirstAidKit size={16} weight="bold" aria-hidden="true" /> Fases 1 y 2 hechas
+          <FirstAidKit size={16} weight="bold" aria-hidden="true" /> Todas las fases hechas
         </span>
         <h1>Gestión de turnos y atención médica</h1>
         <p className="home-hero__texto">

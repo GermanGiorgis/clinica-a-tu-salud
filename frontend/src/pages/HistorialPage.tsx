@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarBlank, MapPin, Pill, Stethoscope } from "@phosphor-icons/react";
+import { CalendarBlank, Flask, MapPin, Pill, Stethoscope } from "@phosphor-icons/react";
 import { miHistorial } from "../api/historial";
 import type { HistorialEntry } from "../types";
 import "./HistorialPage.css";
@@ -61,6 +61,20 @@ export function HistorialPage() {
                     </ul>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {entrada.consulta.ordenesEstudio.length > 0 && (
+              <div>
+                <h3>Estudios</h3>
+                <ul>
+                  {entrada.consulta.ordenesEstudio.map((orden) => (
+                    <li key={orden.id}>
+                      <Flask size={15} aria-hidden="true" /> {orden.estudioNombre}
+                      {orden.resultado ? `: ${orden.resultado.resultado}` : " (pendiente)"}
+                    </li>
+                  ))}
+                </ul>
               </div>
             )}
           </li>

@@ -82,3 +82,28 @@
   font-style: italic;
   color: var(--color-muted-foreground);
 }
+
+.consulta__orden {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  background: var(--color-card);
+}
+
+.consulta__orden-cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+.consulta__orden-cabecera strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.consulta__resultado {
+  white-space: pre-wrap;
+}

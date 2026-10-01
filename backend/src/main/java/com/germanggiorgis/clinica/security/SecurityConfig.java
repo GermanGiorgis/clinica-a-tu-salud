@@ -89,17 +89,20 @@ public class SecurityConfig {
                                 "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
                                 "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**",
-                                "/api/obras-sociales/**").permitAll()
+                                "/api/obras-sociales/**", "/api/estudios/**").permitAll()
                         .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**",
+                                "/api/estudios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**",
+                                "/api/estudios/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
-                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**").hasRole("ADMIN")
+                                "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**",
+                                "/api/estudios/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

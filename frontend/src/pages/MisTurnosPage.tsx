@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { CalendarBlank, CheckCircle, MapPin, ShieldCheck, XCircle } from "@phosphor-icons/react";
+import { CalendarBlank, CheckCircle, MapPin, ShieldCheck, Star, XCircle } from "@phosphor-icons/react";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { cancelarTurno, confirmarTurno, misTurnos } from "../api/turnos";
+import { crearEncuesta, obtenerEncuesta } from "../api/encuestas";
 import { extraerError } from "../utils/errores";
-import type { MotivoCancelacion, Turno } from "../types";
+import type { Encuesta, MotivoCancelacion, Turno } from "../types";
 import "./MisTurnosPage.css";
 
 const ETIQUETA_ESTADO: Record<Turno["estado"], string> = {
@@ -106,9 +107,72 @@ export function MisTurnosPage() {
                 </>
               )}
             </div>
+            {turno.estado === "ATENDIDO" && <EncuestaTurno turnoId={turno.id} />}
           </li>
         ))}
       </ul>
     </main>
+  );
+}
+
+function EncuestaTurno({ turnoId }: { turnoId: number }) {
+  const [encuesta, setEncuesta] = useState<Encuesta | null | undefined>(undefined);
+  const [puntaje, setPuntaje] = useState(5);
+  const [comentario, setComentario] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    obtenerEncuesta(turnoId)
+      .then(setEncuesta)
+      .catch((err) => setEncuesta(err?.response?.status === 404 ? null : null));
+  }, [turnoId]);
+
+  async function enviar() {
+    setEnviando(true);
+    setError(null);
+    try {
+      const nueva = await crearEncuesta(turnoId, puntaje, comentario || undefined);
+      setEncuesta(nueva);
+    } catch (err) {
+      setError(extraerError(err));
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  if (encuesta === undefined) return null;
+
+  if (encuesta) {
+    return (
+      <div className="mis-turnos__encuesta mis-turnos__encuesta--hecha">
+        {Array.from({ length: 5 }, (_, i) => (
+          <Star key={i} size={16} weight={i < encuesta.puntaje ? "fill" : "regular"} aria-hidden="true" />
+        ))}
+        {encuesta.comentario && <span className="mis-turnos__motivo">"{encuesta.comentario}"</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mis-turnos__encuesta">
+      <span>¿Cómo fue la atención?</span>
+      <div className="mis-turnos__estrellas">
+        {Array.from({ length: 5 }, (_, i) => (
+          <button key={i} type="button" onClick={() => setPuntaje(i + 1)} aria-label={`${i + 1} estrellas`}>
+            <Star size={18} weight={i < puntaje ? "fill" : "regular"} aria-hidden="true" />
+          </button>
+        ))}
+      </div>
+      <input
+        placeholder="Comentario (opcional)"
+        value={comentario}
+        onChange={(e) => setComentario(e.target.value)}
+      />
+      <button type="button" className="btn btn-secondary btn-sm" disabled={enviando} onClick={enviar}>
+        {enviando ? "Enviando…" : "Enviar"}
+      </button>
+      {error && <p className="error-banner">{error}</p>}
+    </div>
   );
 }

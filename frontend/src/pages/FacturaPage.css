@@ -1,0 +1,55 @@
+.factura__detalle {
+  max-width: 480px;
+  margin-top: var(--space-md);
+}
+
+.factura__cabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+  font-size: 1.1rem;
+}
+
+.factura__cabecera span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+  color: var(--color-muted-foreground);
+}
+
+.factura__detalle ul {
+  padding-left: 1.2rem;
+  margin: 0;
+}
+
+.factura__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 480px;
+  margin-top: var(--space-md);
+  padding: var(--space-lg);
+  background: var(--color-muted);
+  border-radius: var(--radius-lg);
+}
+
+.factura__fila {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.factura__fila input {
+  flex: 1;
+}
+
+.factura__agregar {
+  align-self: flex-start;
+}
+
+.factura__total {
+  font-weight: 600;
+  font-size: 1.05rem;
+}

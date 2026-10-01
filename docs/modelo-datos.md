@@ -222,14 +222,20 @@ elegir cualquier médico directamente.
 | 1. Turnos | ✅ hecha | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
 | 2. Atención clínica | ✅ hecha | Consulta, diagnóstico, receta e historial | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta` |
 | 2b. Cobertura | ✅ hecha | Obra social y afiliación del paciente | `ObraSocial`, `Afiliacion` |
-| 3. Complementos | pendiente | Estudios, encuestas, cobros y panel de métricas | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
+| 3. Complementos | ✅ hecha (sin panel de métricas) | Estudios, encuestas y cobros | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
 
 La fase 2b agrega `ObraSocial` (catálogo que edita el admin) y `Afiliacion`
 (cada paciente gestiona las propias: alta, listado y baja). `turno.afiliacion_id`
 es opcional: al reservar, un paciente puede indicar con qué afiliación propia
 se atiende ese turno concreto; si no indica ninguna, el turno queda sin
-cobertura asociada ("particular"). La facturación (fase 3) es opcional y se
-simplificará si el alcance se extiende demasiado.
+cobertura asociada ("particular").
+
+La fase 3 implementada cubre: `OrdenEstudio` (1:1 con `ResultadoEstudio`,
+cuelga de una `Consulta` igual que `Receta`), `Encuesta` (1:1 con `Turno`,
+la carga una sola vez el propio paciente después de ser atendido) y una
+`Factura` simplificada (1:1 con `Turno`, con sus `ItemFactura`; el total lo
+calcula el servidor a partir de los ítems, nunca el que mande el cliente).
+Un panel de métricas agregadas queda **fuera de alcance** por ahora.
 
 ## Estados del turno
 

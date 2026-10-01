@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useLocation, useParams } from "react-router-dom";
-import { Pill, Plus, Trash, X } from "@phosphor-icons/react";
+import { Flask, Pill, Plus, Trash, X } from "@phosphor-icons/react";
 import { crearConsulta, obtenerConsultaDeTurno } from "../api/consultas";
 import { listarMedicamentos } from "../api/medicamentos";
 import { crearReceta } from "../api/recetas";
+import { listarEstudios } from "../api/estudios";
+import { cargarResultado, crearOrdenEstudio } from "../api/ordenesEstudio";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
-import type { Consulta, Medicamento, Turno } from "../types";
+import type { Consulta, Estudio, Medicamento, Turno } from "../types";
 import "./ConsultaPage.css";
 
 interface DiagnosticoForm {
@@ -43,6 +45,14 @@ export function ConsultaPage() {
   const [items, setItems] = useState<ItemForm[]>([{ medicamentoId: "", dosis: "", frecuencia: "", duracionDias: "" }]);
   const [guardandoReceta, setGuardandoReceta] = useState(false);
 
+  const [estudios, setEstudios] = useState<Estudio[]>([]);
+  const [mostrarFormOrden, setMostrarFormOrden] = useState(false);
+  const [estudioId, setEstudioId] = useState("");
+  const [indicaciones, setIndicaciones] = useState("");
+  const [guardandoOrden, setGuardandoOrden] = useState(false);
+  const [resultadoPorOrden, setResultadoPorOrden] = useState<Record<number, string>>({});
+  const [cargandoResultado, setCargandoResultado] = useState<number | null>(null);
+
   function cargar() {
     obtenerConsultaDeTurno(id)
       .then((c) => {
@@ -67,6 +77,7 @@ export function ConsultaPage() {
   useEffect(() => {
     if (esStaff) {
       listarMedicamentos().then(setMedicamentos).catch(() => {});
+      listarEstudios().then(setEstudios).catch(() => {});
     }
   }, [esStaff]);
 
@@ -122,6 +133,42 @@ export function ConsultaPage() {
       setError(extraerError(err));
     } finally {
       setGuardandoReceta(false);
+    }
+  }
+
+  async function handleCrearOrden(e: FormEvent) {
+    e.preventDefault();
+    if (!consulta) return;
+    setGuardandoOrden(true);
+    setError(null);
+    try {
+      await crearOrdenEstudio(consulta.id, {
+        estudioId: Number(estudioId),
+        indicaciones: indicaciones || undefined,
+      });
+      setEstudioId("");
+      setIndicaciones("");
+      setMostrarFormOrden(false);
+      cargar();
+    } catch (err) {
+      setError(extraerError(err));
+    } finally {
+      setGuardandoOrden(false);
+    }
+  }
+
+  async function handleCargarResultado(ordenId: number) {
+    const resultado = resultadoPorOrden[ordenId];
+    if (!resultado?.trim()) return;
+    setCargandoResultado(ordenId);
+    setError(null);
+    try {
+      await cargarResultado(ordenId, resultado);
+      cargar();
+    } catch (err) {
+      setError(extraerError(err));
+    } finally {
+      setCargandoResultado(null);
     }
   }
 
@@ -261,6 +308,73 @@ export function ConsultaPage() {
                 <div className="consulta__fila">
                   <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoReceta}>{guardandoReceta ? "Guardando…" : "Guardar receta"}</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarFormReceta(false)}>
+                    <X size={16} aria-hidden="true" /> Cancelar
+                  </button>
+                </div>
+              </form>
+            )}
+          </section>
+
+          <section>
+            <h2>Órdenes de estudio</h2>
+            {consulta.ordenesEstudio.length === 0 && <p className="empty-state">No se pidieron estudios.</p>}
+            {consulta.ordenesEstudio.map((orden) => (
+              <div key={orden.id} className="consulta__orden">
+                <div className="consulta__orden-cabecera">
+                  <strong><Flask size={16} aria-hidden="true" /> {orden.estudioNombre}</strong>
+                  <span className={`badge badge--${orden.estado === "COMPLETADA" ? "atendido" : "reservado"}`}>
+                    {orden.estado === "COMPLETADA" ? "Completada" : "Solicitada"}
+                  </span>
+                </div>
+                {orden.indicaciones && <p className="consulta__observaciones">{orden.indicaciones}</p>}
+                {orden.resultado && <p className="consulta__resultado">{orden.resultado.resultado}</p>}
+                {esStaff && orden.estado === "SOLICITADA" && (
+                  <div className="consulta__fila">
+                    <textarea
+                      placeholder="Resultado del estudio"
+                      rows={2}
+                      value={resultadoPorOrden[orden.id] ?? ""}
+                      onChange={(e) => setResultadoPorOrden({ ...resultadoPorOrden, [orden.id]: e.target.value })}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      disabled={cargandoResultado === orden.id}
+                      onClick={() => handleCargarResultado(orden.id)}
+                    >
+                      {cargandoResultado === orden.id ? "Guardando…" : "Cargar resultado"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {esStaff && !mostrarFormOrden && (
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setMostrarFormOrden(true)}>
+                <Plus size={16} aria-hidden="true" /> Pedir estudio
+              </button>
+            )}
+
+            {esStaff && mostrarFormOrden && (
+              <form className="consulta__form" onSubmit={handleCrearOrden}>
+                <label>
+                  Estudio
+                  <select value={estudioId} onChange={(e) => setEstudioId(e.target.value)} required>
+                    <option value="">Elegí un estudio…</option>
+                    {estudios.map((e) => (
+                      <option key={e.id} value={e.id}>{e.nombre} ({e.tipo})</option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Indicaciones (opcional)
+                  <textarea value={indicaciones} onChange={(e) => setIndicaciones(e.target.value)} rows={2} />
+                </label>
+                <div className="consulta__fila">
+                  <button type="submit" className="btn btn-primary btn-sm" disabled={guardandoOrden}>
+                    {guardandoOrden ? "Guardando…" : "Pedir estudio"}
+                  </button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setMostrarFormOrden(false)}>
                     <X size={16} aria-hidden="true" /> Cancelar
                   </button>
                 </div>

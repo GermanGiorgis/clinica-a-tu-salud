@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarBlank, CheckCircle, ClipboardText, MapPin, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
+import { CalendarBlank, CheckCircle, ClipboardText, MapPin, Receipt, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
@@ -152,9 +152,14 @@ export function AgendaMedicoPage() {
                 </>
               )}
               {turno.estado === "ATENDIDO" && (
-                <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
-                  <ClipboardText size={16} aria-hidden="true" /> Ver consulta
-                </Link>
+                <>
+                  <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
+                    <ClipboardText size={16} aria-hidden="true" /> Ver consulta
+                  </Link>
+                  <Link to={`/turnos/${turno.id}/factura`} state={{ turno }} className="btn btn-ghost btn-sm">
+                    <Receipt size={16} aria-hidden="true" /> Facturar
+                  </Link>
+                </>
               )}
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>
