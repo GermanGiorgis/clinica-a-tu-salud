@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -50,8 +51,12 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException ignored) {
-            // Token inválido o expirado: seguimos sin autenticar, Spring Security responde 401/403 más adelante.
+        } catch (io.jsonwebtoken.JwtException | IllegalArgumentException | AuthenticationException ignored) {
+            // Token inválido o expirado, o de un usuario que ya no existe / fue desactivado
+            // (UsernameNotFoundException es una AuthenticationException): seguimos sin
+            // autenticar y el entry point de SecurityConfig responde 401. Este filtro corre
+            // antes de ExceptionTranslationFilter, así que una excepción que se escape acá
+            // no la traduce nadie y termina en un 500.
         }
 
         filterChain.doFilter(request, response);
