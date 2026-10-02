@@ -1,0 +1,125 @@
+.metricas__intro {
+  color: var(--color-muted-foreground);
+  margin: 0 0 var(--space-lg);
+}
+
+.metricas__kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.metricas__kpi {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.metricas__kpi svg {
+  color: var(--color-primary);
+  margin-bottom: var(--space-xs);
+}
+
+.metricas__kpi strong {
+  font-family: var(--font-heading);
+  font-size: 1.45rem;
+  line-height: 1.2;
+}
+
+.metricas__kpi span {
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+}
+
+.metricas__paneles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
+}
+
+.metricas__barras {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.metricas__barras li {
+  display: grid;
+  grid-template-columns: 7rem 1fr auto;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: 0.9rem;
+}
+
+.metricas__pista {
+  height: 10px;
+  background: var(--color-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.metricas__barra {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: 999px;
+  background: var(--color-primary);
+}
+
+.metricas__barra--atendido {
+  background: var(--color-accent);
+}
+
+.metricas__barra--ausente,
+.metricas__barra--cancelado {
+  background: var(--color-destructive);
+}
+
+.metricas__barra--reservado {
+  background: var(--color-warning);
+}
+
+.metricas__valor {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.metricas__tabla-scroll {
+  overflow-x: auto;
+  margin-top: var(--space-md);
+}
+
+.metricas__medicos table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.metricas__medicos th,
+.metricas__medicos td {
+  padding: 0.6rem 0.75rem;
+  text-align: right;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.metricas__medicos th:first-child,
+.metricas__medicos td:first-child {
+  text-align: left;
+}
+
+.metricas__medicos thead th {
+  font-size: 0.8rem;
+  color: var(--color-muted-foreground);
+  font-weight: 600;
+}
+
+.metricas__medicos tbody th {
+  font-weight: 600;
+}

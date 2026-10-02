@@ -1,21 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarBlank, CheckCircle, ClipboardText, MapPin, Receipt, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
+import { CalendarBlank, CheckCircle, ClipboardText, ClockCounterClockwise, MapPin, Receipt, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
+import { ETIQUETA_ESTADO } from "../utils/etiquetas";
 import type { Medico, MotivoCancelacion, Turno } from "../types";
 import "./AgendaMedicoPage.css";
-
-const ETIQUETA_ESTADO: Record<Turno["estado"], string> = {
-  RESERVADO: "Reservado",
-  CONFIRMADO: "Confirmado",
-  ATENDIDO: "Atendido",
-  AUSENTE: "Ausente",
-  CANCELADO: "Cancelado",
-};
 
 export function AgendaMedicoPage() {
   const { usuario } = useAuth();
@@ -136,6 +129,13 @@ export function AgendaMedicoPage() {
               <span className={`badge badge--${turno.estado.toLowerCase()}`}>
                 {ETIQUETA_ESTADO[turno.estado]}
               </span>
+              <Link
+                to={`/pacientes/${turno.pacienteId}/historial`}
+                state={{ pacienteNombre: turno.pacienteNombre }}
+                className="btn btn-ghost btn-sm"
+              >
+                <ClockCounterClockwise size={16} aria-hidden="true" /> Historial
+              </Link>
               {turno.estado === "RESERVADO" && (
                 <button type="button" className="btn btn-primary btn-sm" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
                   <CheckCircle size={16} aria-hidden="true" /> Confirmar

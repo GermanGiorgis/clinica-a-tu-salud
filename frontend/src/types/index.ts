@@ -166,3 +166,36 @@ export interface Afiliacion {
   vigenteDesde: string;
   vigenteHasta: string | null;
 }
+
+export interface ConteoPorEstado {
+  estado: EstadoTurno;
+  cantidad: number;
+}
+
+export interface MontoPorMedioPago {
+  medioPago: MedioPago;
+  cantidad: number;
+  total: number;
+}
+
+export interface MetricaMedico {
+  medicoId: number;
+  nombre: string;
+  turnosAtendidos: number;
+  turnosAusentes: number;
+  puntajePromedio: number | null;
+  encuestas: number;
+  facturado: number;
+}
+
+export interface Metricas {
+  totalTurnos: number;
+  pacientesAtendidos: number;
+  tasaAusentismo: number | null;
+  puntajePromedio: number | null;
+  totalEncuestas: number;
+  facturacionTotal: number;
+  turnosPorEstado: ConteoPorEstado[];
+  facturacionPorMedioPago: MontoPorMedioPago[];
+  medicos: MetricaMedico[];
+}

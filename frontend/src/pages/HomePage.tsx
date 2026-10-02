@@ -24,6 +24,7 @@ const FASES = [
   { nombre: "Atención clínica", detalle: "consulta, diagnóstico, receta e historial", hecha: true },
   { nombre: "Cobertura", detalle: "obra social y afiliación del paciente", hecha: true },
   { nombre: "Complementos", detalle: "estudios, encuesta de satisfacción y facturación", hecha: true },
+  { nombre: "Métricas", detalle: "panel de indicadores de la clínica para el admin", hecha: true },
 ];
 
 export function HomePage() {

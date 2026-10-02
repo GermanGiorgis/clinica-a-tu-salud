@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, ClipboardText, ShieldCheck, SignOut, Stethoscope, UserCircle } from "@phosphor-icons/react";
+import { Calendar, ChartBar, ClipboardText, ShieldCheck, SignOut, Stethoscope, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import "./Header.css";
 
@@ -43,6 +43,11 @@ export function Header() {
         {estaAutenticado && (usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN") && (
           <Link to="/agenda" className={activo("/agenda") ? "activo" : ""}>
             <Calendar size={18} aria-hidden="true" /> Mi agenda
+          </Link>
+        )}
+        {estaAutenticado && usuario?.rol === "ADMIN" && (
+          <Link to="/metricas" className={activo("/metricas") ? "activo" : ""}>
+            <ChartBar size={18} aria-hidden="true" /> Métricas
           </Link>
         )}
         {estaAutenticado ? (

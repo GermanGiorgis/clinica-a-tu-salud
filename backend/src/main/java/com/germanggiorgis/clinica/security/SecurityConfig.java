@@ -90,7 +90,7 @@ public class SecurityConfig {
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
                                 "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**",
                                 "/api/obras-sociales/**", "/api/estudios/**").permitAll()
-                        .requestMatchers("/api/usuarios/**").hasRole("ADMIN")
+                        .requestMatchers("/api/usuarios/**", "/api/metricas/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
                                 "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**",

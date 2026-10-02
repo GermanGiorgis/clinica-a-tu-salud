@@ -222,7 +222,8 @@ elegir cualquier médico directamente.
 | 1. Turnos | ✅ hecha | Login con roles, catálogos, agenda, derivación por patología y reserva de turnos | `Usuario`, `Paciente`, `Medico`, `Especialidad`, `Patologia`, `Consultorio`, `HorarioAtencion`, `Turno`, `MotivoCancelacion` |
 | 2. Atención clínica | ✅ hecha | Consulta, diagnóstico, receta e historial | `Consulta`, `Diagnostico`, `Medicamento`, `Receta`, `ItemReceta` |
 | 2b. Cobertura | ✅ hecha | Obra social y afiliación del paciente | `ObraSocial`, `Afiliacion` |
-| 3. Complementos | ✅ hecha (sin panel de métricas) | Estudios, encuestas y cobros | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
+| 3. Complementos | ✅ hecha | Estudios, encuestas y cobros | `Estudio`, `OrdenEstudio`, `ResultadoEstudio`, `Encuesta`, `Factura`, `ItemFactura` |
+| 4. Métricas | ✅ hecha | Panel de indicadores de la clínica para el admin | Ninguna entidad nueva: se calcula con consultas agregadas |
 
 La fase 2b agrega `ObraSocial` (catálogo que edita el admin) y `Afiliacion`
 (cada paciente gestiona las propias: alta, listado y baja). `turno.afiliacion_id`
@@ -235,7 +236,7 @@ cuelga de una `Consulta` igual que `Receta`), `Encuesta` (1:1 con `Turno`,
 la carga una sola vez el propio paciente después de ser atendido) y una
 `Factura` simplificada (1:1 con `Turno`, con sus `ItemFactura`; el total lo
 calcula el servidor a partir de los ítems, nunca el que mande el cliente).
-Un panel de métricas agregadas queda **fuera de alcance** por ahora.
+El panel de métricas (fase 4) es solo para el `ADMIN` (`GET /api/metricas`) y no guarda nada: la base cuenta y suma con `GROUP BY` y el servicio solo completa los ceros y calcula los porcentajes. Informa turnos por estado, pacientes distintos atendidos, ausentismo (ausentes sobre atendidos + ausentes: los cancelados y los pendientes no cuentan), satisfacción promedio de las encuestas, facturación total y por medio de pago, y una fila por médico con sus atendidos, ausentes, satisfacción y facturado. Si todavía no hay datos para calcular un porcentaje o un promedio, devuelve `null` en lugar de un cero que parezca real.
 
 ## Estados del turno
 

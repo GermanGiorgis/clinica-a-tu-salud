@@ -13,6 +13,8 @@ import { ConsultaPage } from "./pages/ConsultaPage";
 import { HistorialPage } from "./pages/HistorialPage";
 import { MisAfiliacionesPage } from "./pages/MisAfiliacionesPage";
 import { FacturaPage } from "./pages/FacturaPage";
+import { HistorialPacientePage } from "./pages/HistorialPacientePage";
+import { MetricasPage } from "./pages/MetricasPage";
 import "./App.css";
 
 export default function App() {
@@ -71,6 +73,22 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
                 <FacturaPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/pacientes/:pacienteId/historial"
+            element={
+              <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
+                <HistorialPacientePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/metricas"
+            element={
+              <ProtectedRoute rolesPermitidos={["ADMIN"]}>
+                <MetricasPage />
               </ProtectedRoute>
             }
           />

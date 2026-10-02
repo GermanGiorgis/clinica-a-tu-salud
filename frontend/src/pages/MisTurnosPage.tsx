@@ -4,16 +4,9 @@ import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { cancelarTurno, confirmarTurno, misTurnos } from "../api/turnos";
 import { crearEncuesta, obtenerEncuesta } from "../api/encuestas";
 import { extraerError } from "../utils/errores";
+import { ETIQUETA_ESTADO } from "../utils/etiquetas";
 import type { Encuesta, MotivoCancelacion, Turno } from "../types";
 import "./MisTurnosPage.css";
-
-const ETIQUETA_ESTADO: Record<Turno["estado"], string> = {
-  RESERVADO: "Reservado",
-  CONFIRMADO: "Confirmado",
-  ATENDIDO: "Atendido",
-  AUSENTE: "Ausente",
-  CANCELADO: "Cancelado",
-};
 
 export function MisTurnosPage() {
   const [turnos, setTurnos] = useState<Turno[] | null>(null);
@@ -125,7 +118,7 @@ function EncuestaTurno({ turnoId }: { turnoId: number }) {
   useEffect(() => {
     obtenerEncuesta(turnoId)
       .then(setEncuesta)
-      .catch((err) => setEncuesta(err?.response?.status === 404 ? null : null));
+      .catch(() => setEncuesta(null)); // 404 = todavía no completó la encuesta
   }, [turnoId]);
 
   async function enviar() {
