@@ -7,8 +7,9 @@ personal administrativo coordina el día a día de la clínica.
 **Estado:** el modelo completo está implementado: autenticación con roles,
 reserva de turnos, atención clínica (consulta, diagnóstico, receta,
 historial), cobertura (obra social y afiliación) y complementos (estudios,
-encuesta de satisfacción y facturación simplificada), con una identidad
-visual propia y una suite de tests automáticos en el backend.
+encuesta de satisfacción y facturación simplificada), un panel de métricas para
+el admin, una identidad visual propia y tests automáticos en el backend y en
+el frontend, con integración continua en GitHub Actions.
 
 ## Origen
 
@@ -25,8 +26,8 @@ interfaz web. No reutiliza código del trabajo original, solo la idea del domini
 | Rol | Qué hace |
 |---|---|
 | Paciente | Busca médicos por especialidad o por patología, reserva y cancela sus turnos, consulta su historial y recetas |
-| Médico | Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta |
-| Admin | Administra usuarios y catálogos, y puede gestionar la agenda de cualquier médico igual que el propio médico |
+| Médico | Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta, y consulta el historial de los pacientes que atendió |
+| Admin | Administra usuarios y catálogos, gestiona la agenda de cualquier médico igual que el propio médico y ve el panel de métricas de la clínica |
 
 ## Stack
 
@@ -84,24 +85,33 @@ npm run dev
 
 ## Tests
 
+**Backend** (necesita PostgreSQL con la base `clinica_test`, que crea el script de arriba, y la misma contraseña configurada):
+
 ```
 cd backend
 ./mvnw test
 ```
 
-Necesita PostgreSQL con la base `clinica_test` (la crea el script de arriba) y
-la misma contraseña configurada. No usa H2 a propósito: la regla que impide
-reservar dos veces el mismo horario es un índice único parcial de Postgres, y
-H2 no lo soporta.
+No usa H2 a propósito: la regla que impide reservar dos veces el mismo horario es un índice único parcial de Postgres, y H2 no lo soporta.
 
 | Tipo | Qué cubre |
 |---|---|
-| Unitarios de servicios (Mockito) | Reglas de negocio y permisos de cada servicio: reserva y disponibilidad, cancelación con anticipación mínima, estados del turno, consulta/receta/estudios, encuesta, facturación, cobertura, historial y los catálogos |
-| Integración HTTP (MockMvc + Postgres real) | Filtro JWT, `SecurityConfig` (qué es público, qué exige login y qué exige rol), formato de errores de la API, login/registro y el flujo de reserva completo con la restricción real de la base |
+| Unitarios de servicios (Mockito) | Reglas de negocio y permisos de cada servicio: reserva y disponibilidad, cancelación con anticipación mínima, estados del turno, consulta/receta/estudios, encuesta, facturación, cobertura, historial, métricas y los catálogos |
+| Integración HTTP (MockMvc + Postgres real) | Filtro JWT, `SecurityConfig` (qué es público, qué exige login y qué exige rol), formato de errores de la API, login/registro, el flujo de reserva completo con la restricción real de la base y las consultas de agregación de las métricas |
 | Esquema (`@DataJpaTest` + Postgres real) | Que las entidades coincidan con las migraciones y que la base rechace el doble turno |
 
-El frontend se verifica con `npx tsc --noEmit` y `npx oxlint`; todavía no tiene
-tests automáticos.
+**Frontend** (Vitest + Testing Library, no necesita backend ni base):
+
+```
+cd frontend
+npm test
+```
+
+Cubre la sesión (login, registro, logout y recuperación al recargar), el interceptor que manda el token, qué ve cada rol en el menú, qué rol puede entrar a cada ruta, y el comportamiento de las pantallas principales: reserva de turnos, mis turnos, agenda del médico, historial, métricas y búsqueda de médicos por patología. Las llamadas a la API se simulan.
+
+Además se verifica el tipado con `npx tsc -b` y el lint con `npm run lint`.
+
+**Integración continua:** `.github/workflows/ci.yml` corre todo lo anterior en cada push y pull request (el backend contra un Postgres de servicio).
 
 ## Documentación
 
