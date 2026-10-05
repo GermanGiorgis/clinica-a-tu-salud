@@ -1,9 +1,17 @@
+.agenda-medico__filtros {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  column-gap: var(--space-lg);
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
 .agenda-medico__selector {
   flex-direction: row;
   align-items: center;
   gap: 0.5rem;
   max-width: 380px;
-  margin: var(--space-md) 0 var(--space-lg);
+  margin: 0;
 }
 
 .agenda-medico__selector select {

@@ -29,6 +29,7 @@ function montar() {
 describe("MisTurnosPage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(motivosApi.listarMotivosCancelacion).mockResolvedValue(motivos);
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
   });
@@ -92,26 +93,50 @@ describe("MisTurnosPage", () => {
     expect(screen.queryByRole("button", { name: /Cancelar/ })).not.toBeInTheDocument();
   });
 
-  it("cancelar usa el primer motivo por defecto y recarga la lista", async () => {
+  it("el motivo de cancelación no viene preseleccionado: hay que elegirlo", async () => {
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 7, estado: "RESERVADO" })]);
-    vi.mocked(turnosApi.cancelarTurno).mockResolvedValue(turno({ id: 7, estado: "CANCELADO" }));
+    montar();
+
+    const selector = await screen.findByRole("combobox", { name: "Motivo de cancelación" });
+
+    expect(selector).toHaveValue("");
+    expect(screen.getByRole("option", { name: "Motivo de cancelación…" })).toBeInTheDocument();
+  });
+
+  it("cancelar sin haber elegido un motivo lo pide y no llama a la API ni pregunta nada", async () => {
+    vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 7, estado: "RESERVADO" })]);
     montar();
 
     await userEvent.click(await screen.findByRole("button", { name: /Cancelar/ }));
 
-    await waitFor(() => expect(turnosApi.cancelarTurno).toHaveBeenCalledWith(7, 10));
-    await waitFor(() => expect(turnosApi.misTurnos).toHaveBeenCalledTimes(2));
+    expect(await screen.findByText("Elegí el motivo de la cancelación.")).toBeInTheDocument();
+    expect(turnosApi.cancelarTurno).not.toHaveBeenCalled();
+    expect(window.confirm).not.toHaveBeenCalled();
   });
 
-  it("cancelar usa el motivo que el paciente eligió", async () => {
+  it("cancelar con el motivo elegido pide confirmación y, si se acepta, cancela con ese motivo y recarga", async () => {
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 7, estado: "RESERVADO" })]);
     vi.mocked(turnosApi.cancelarTurno).mockResolvedValue(turno({ id: 7, estado: "CANCELADO" }));
     montar();
 
-    await userEvent.selectOptions(await screen.findByRole("combobox"), "Me siento mejor");
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Motivo de cancelación" }), "Me siento mejor");
     await userEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
 
+    expect(window.confirm).toHaveBeenCalledTimes(1);
     await waitFor(() => expect(turnosApi.cancelarTurno).toHaveBeenCalledWith(7, 11));
+    await waitFor(() => expect(turnosApi.misTurnos).toHaveBeenCalledTimes(2));
+  });
+
+  it("si en la confirmación se responde que no, el turno no se cancela", async () => {
+    vi.mocked(window.confirm).mockReturnValue(false);
+    vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 7, estado: "RESERVADO" })]);
+    montar();
+
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Motivo de cancelación" }), "Me siento mejor");
+    await userEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
+
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+    expect(turnosApi.cancelarTurno).not.toHaveBeenCalled();
   });
 
   it("si la API rechaza la cancelación (menos de 2 horas) muestra el motivo y no recarga", async () => {
@@ -119,7 +144,8 @@ describe("MisTurnosPage", () => {
     vi.mocked(turnosApi.cancelarTurno).mockRejectedValue(errorApi(400, "Solo se puede cancelar con 2 horas de anticipación"));
     montar();
 
-    await userEvent.click(await screen.findByRole("button", { name: /Cancelar/ }));
+    await userEvent.selectOptions(await screen.findByRole("combobox", { name: "Motivo de cancelación" }), "Me siento mejor");
+    await userEvent.click(screen.getByRole("button", { name: /Cancelar/ }));
 
     expect(await screen.findByText("Solo se puede cancelar con 2 horas de anticipación")).toBeInTheDocument();
     expect(turnosApi.misTurnos).toHaveBeenCalledTimes(1);

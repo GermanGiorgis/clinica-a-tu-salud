@@ -139,7 +139,36 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
       expect(vi.mocked(medicosApi.obtenerDisponibilidad).mock.calls.length).toBeGreaterThan(llamadasAntes);
     });
 
-    it("si tiene afiliaciones puede elegir con cuál se atiende, y se manda su id", async () => {
+    it("si el horario ya lo ocupó otra persona, vuelve a pedir la disponibilidad para que deje de verse", async () => {
+    const respuesta = { status: 409, data: { error: "Ese horario ya fue reservado, elegí otro" } } as AxiosResponse;
+    vi.mocked(turnosApi.crearTurno).mockRejectedValue(new AxiosError("x", "ERR_BAD_REQUEST", undefined, undefined, respuesta));
+    montar(usuario("PACIENTE"));
+    await elegirHorario();
+    // Cuando el paciente reintenta, el servidor ya no ofrece las 09:30.
+    vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: ["09:00:00"] });
+
+    await userEvent.click(screen.getByRole("button", { name: /^Reservar/ }));
+
+    expect(await screen.findByText("Ese horario ya fue reservado, elegí otro")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("button", { name: "09:30" })).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "09:00" })).toBeInTheDocument();
+    // y ya no queda elegido un horario que no existe más
+    expect(screen.queryByRole("button", { name: /^Reservar/ })).not.toBeInTheDocument();
+  });
+
+  it("no deja elegir una fecha más allá de la ventana de reserva de 60 días", async () => {
+    montar(null);
+    await screen.findByRole("button", { name: "09:00" });
+
+    const campo = screen.getByLabelText(/Fecha/) as HTMLInputElement;
+    const limite = new Date();
+    limite.setDate(limite.getDate() + 60);
+
+    expect(campo.max).toBe(limite.toLocaleDateString("sv-SE"));
+    expect(campo.min).toBe(new Date().toLocaleDateString("sv-SE"));
+  });
+
+  it("si tiene afiliaciones puede elegir con cuál se atiende, y se manda su id", async () => {
       vi.mocked(afiliacionesApi.misAfiliaciones).mockResolvedValue([osde]);
       montar(usuario("PACIENTE"));
 

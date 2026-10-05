@@ -38,9 +38,18 @@ export function MisTurnosPage() {
   }
 
   async function handleCancelar(id: number) {
-    const motivoId = motivoPorTurno[id] ?? motivos[0]?.id;
-    if (!motivoId) {
+    if (motivos.length === 0) {
       setError("Todavía no hay motivos de cancelación cargados.");
+      return;
+    }
+    // El motivo no viene preseleccionado: si el primero quedara elegido de antemano, un clic de más
+    // cancelaría el turno con un motivo que nadie eligió.
+    const motivoId = motivoPorTurno[id];
+    if (!motivoId) {
+      setError("Elegí el motivo de la cancelación.");
+      return;
+    }
+    if (!window.confirm("¿Querés cancelar este turno? Esta acción no se puede deshacer.")) {
       return;
     }
     setProcesando(id);
@@ -87,9 +96,11 @@ export function MisTurnosPage() {
                     </button>
                   )}
                   <select
-                    value={motivoPorTurno[turno.id] ?? motivos[0]?.id ?? ""}
+                    aria-label="Motivo de cancelación"
+                    value={motivoPorTurno[turno.id] ?? ""}
                     onChange={(e) => setMotivoPorTurno({ ...motivoPorTurno, [turno.id]: Number(e.target.value) })}
                   >
+                    <option value="">Motivo de cancelación…</option>
                     {motivos.map((m) => (
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}

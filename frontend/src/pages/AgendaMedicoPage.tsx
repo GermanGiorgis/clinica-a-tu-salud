@@ -21,6 +21,8 @@ export function AgendaMedicoPage() {
   const [motivoPorTurno, setMotivoPorTurno] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<number | null>(null);
+  /** Vacío = los turnos de hoy en adelante; con una fecha, los de ese día (también pasado: para cerrar los que quedaron sin resolver). */
+  const [fecha, setFecha] = useState("");
 
   useEffect(() => {
     listarMotivosCancelacion().then(setMotivos).catch(() => {});
@@ -34,7 +36,7 @@ export function AgendaMedicoPage() {
       setTurnos(null);
       return;
     }
-    agendaMedico(medicoId ?? undefined)
+    agendaMedico(medicoId ?? undefined, fecha || undefined)
       .then(setTurnos)
       .catch(() => setError("No se pudo cargar la agenda."));
   }
@@ -42,7 +44,7 @@ export function AgendaMedicoPage() {
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [medicoId, esAdmin]);
+  }, [medicoId, esAdmin, fecha]);
 
   async function handleConfirmar(id: number) {
     setProcesando(id);
@@ -71,9 +73,17 @@ export function AgendaMedicoPage() {
   }
 
   async function handleCancelar(id: number) {
-    const motivoId = motivoPorTurno[id] ?? motivos[0]?.id;
-    if (!motivoId) {
+    if (motivos.length === 0) {
       setError("Todavía no hay motivos de cancelación cargados.");
+      return;
+    }
+    // Sin motivo preseleccionado: evita cancelar con uno que nadie eligió.
+    const motivoId = motivoPorTurno[id];
+    if (!motivoId) {
+      setError("Elegí el motivo de la cancelación.");
+      return;
+    }
+    if (!window.confirm("¿Querés cancelar este turno? Esta acción no se puede deshacer.")) {
       return;
     }
     setProcesando(id);
@@ -92,25 +102,38 @@ export function AgendaMedicoPage() {
     <main className="page">
       <h1>Agenda</h1>
 
-      {esAdmin && (
+      <div className="agenda-medico__filtros">
+        {esAdmin && (
+          <label className="agenda-medico__selector">
+            Médico
+            <select
+              value={medicoId ?? ""}
+              onChange={(e) => setMedicoId(e.target.value ? Number(e.target.value) : null)}
+            >
+              <option value="">Elegí un médico…</option>
+              {medicos.map((m) => (
+                <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <label className="agenda-medico__selector">
-          Médico
-          <select
-            value={medicoId ?? ""}
-            onChange={(e) => setMedicoId(e.target.value ? Number(e.target.value) : null)}
-          >
-            <option value="">Elegí un médico…</option>
-            {medicos.map((m) => (
-              <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
-            ))}
-          </select>
+          Día
+          <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
         </label>
-      )}
+        {fecha && (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFecha("")}>
+            Ver los próximos turnos
+          </button>
+        )}
+      </div>
 
       {error && <p className="error-banner">{error}</p>}
       {esAdmin && medicoId === null && !error && <p className="empty-state">Elegí un médico para ver su agenda.</p>}
       {(!esAdmin || medicoId !== null) && turnos === null && !error && <p className="empty-state">Cargando…</p>}
-      {turnos !== null && turnos.length === 0 && <p className="empty-state">No hay turnos para mostrar.</p>}
+      {turnos !== null && turnos.length === 0 && (
+        <p className="empty-state">{fecha ? "No hay turnos ese día." : "No hay turnos para mostrar."}</p>
+      )}
 
       <ul className="agenda-medico__lista">
         {turnos?.map((turno) => (
@@ -164,9 +187,11 @@ export function AgendaMedicoPage() {
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>
                   <select
-                    value={motivoPorTurno[turno.id] ?? motivos[0]?.id ?? ""}
+                    aria-label="Motivo de cancelación"
+                    value={motivoPorTurno[turno.id] ?? ""}
                     onChange={(e) => setMotivoPorTurno({ ...motivoPorTurno, [turno.id]: Number(e.target.value) })}
                   >
+                    <option value="">Motivo de cancelación…</option>
                     {motivos.map((m) => (
                       <option key={m.id} value={m.id}>{m.nombre}</option>
                     ))}

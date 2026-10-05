@@ -9,8 +9,17 @@ import { extraerError } from "../utils/errores";
 import type { Afiliacion, Medico } from "../types";
 import "./MedicoDetallePage.css";
 
+/** Cuántos días hacia adelante se puede reservar (el backend rechaza más allá: ver VENTANA_RESERVA_DIAS). */
+const VENTANA_RESERVA_DIAS = 60;
+
 function hoyISO(): string {
   return new Date().toLocaleDateString("sv-SE"); // sv-SE = formato YYYY-MM-DD
+}
+
+function ultimoDiaReservableISO(): string {
+  const fecha = new Date();
+  fecha.setDate(fecha.getDate() + VENTANA_RESERVA_DIAS);
+  return fecha.toLocaleDateString("sv-SE");
 }
 
 export function MedicoDetallePage() {
@@ -73,6 +82,12 @@ export function MedicoDetallePage() {
       setHorarios(d.horariosLibres);
     } catch (err) {
       setError(extraerError(err, "No se pudo reservar el turno."));
+      // Casi siempre es un 409: otra persona se llevó ese horario. Se vuelve a pedir la disponibilidad
+      // para que el horario ocupado deje de verse (y el usuario no lo reintente en vano).
+      setHorarioElegido(null);
+      obtenerDisponibilidad(medicoId, fecha)
+        .then((d) => setHorarios(d.horariosLibres))
+        .catch(() => {});
     } finally {
       setReservando(false);
     }
@@ -101,7 +116,7 @@ export function MedicoDetallePage() {
 
       <label className="medico-detalle__fecha">
         <CalendarBlank size={16} aria-hidden="true" /> Fecha
-        <input type="date" value={fecha} min={hoyISO()} onChange={(e) => setFecha(e.target.value)} />
+        <input type="date" value={fecha} min={hoyISO()} max={ultimoDiaReservableISO()} onChange={(e) => setFecha(e.target.value)} />
       </label>
 
       <h2>Horarios disponibles</h2>
