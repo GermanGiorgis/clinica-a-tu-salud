@@ -5,7 +5,7 @@ import { extraerError } from "../utils/errores";
 import "../components/AuthForm.css";
 
 export function LoginPage() {
-  const { login } = useAuth();
+  const { login, sesionVencida } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,6 +29,9 @@ export function LoginPage() {
   return (
     <main className="auth-form">
       <h1>Iniciar sesión</h1>
+      {sesionVencida && (
+        <p className="auth-form__aviso" role="status">Tu sesión se cerró (venció o la cuenta fue desactivada). Iniciá sesión de nuevo.</p>
+      )}
       <form onSubmit={handleSubmit}>
         <label>
           Email

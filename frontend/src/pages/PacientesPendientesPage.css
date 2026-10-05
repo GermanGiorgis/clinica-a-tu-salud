@@ -1,0 +1,45 @@
+.pendientes__intro {
+  color: var(--color-muted-foreground);
+  margin: 0 0 var(--space-lg);
+}
+
+.pendientes__lista {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.pendientes__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.pendientes__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.pendientes__datos strong {
+  font-size: 1rem;
+}
+
+.pendientes__datos span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-muted-foreground);
+}
+
+.pendientes__acciones {
+  display: flex;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+}

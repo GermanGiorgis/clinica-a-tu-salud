@@ -1,7 +1,9 @@
 import { act, render, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { AxiosError, type AxiosAdapter } from "axios";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "../api/auth";
+import { apiClient } from "../api/client";
 import { usuario } from "../test/fixtures";
 import { AuthProvider, useAuth } from "./AuthContext";
 
@@ -81,6 +83,79 @@ describe("AuthProvider / useAuth", () => {
     expect(result.current.estaAutenticado).toBe(false);
     expect(localStorage.getItem("token")).toBeNull();
     expect(localStorage.getItem("usuario")).toBeNull();
+  });
+
+  describe("cuando el servidor deja de aceptar el token", () => {
+    const adaptadorOriginal = apiClient.defaults.adapter;
+
+    function servidorRespondeCon(status: number) {
+      const adaptador: AxiosAdapter = async (config) => {
+        throw new AxiosError("fallo", "ERR_BAD_REQUEST", config, undefined, { data: {}, status, statusText: "", headers: {}, config });
+      };
+      apiClient.defaults.adapter = adaptador;
+    }
+
+    afterEach(() => {
+      apiClient.defaults.adapter = adaptadorOriginal;
+    });
+
+    it("un 401 cierra la sesión sola, borra lo guardado y marca que fue por vencimiento", async () => {
+      localStorage.setItem("usuario", JSON.stringify(usuario("PACIENTE")));
+      localStorage.setItem("token", "jwt-vencido");
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      servidorRespondeCon(401);
+
+      await act(async () => {
+        await apiClient.get("/api/turnos/mios").catch(() => {});
+      });
+
+      expect(result.current.estaAutenticado).toBe(false);
+      expect(result.current.sesionVencida).toBe(true);
+      expect(localStorage.getItem("token")).toBeNull();
+      expect(localStorage.getItem("usuario")).toBeNull();
+    });
+
+    it("un error que no es 401 no toca la sesión", async () => {
+      localStorage.setItem("usuario", JSON.stringify(usuario("PACIENTE")));
+      localStorage.setItem("token", "jwt-123");
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      servidorRespondeCon(500);
+
+      await act(async () => {
+        await apiClient.get("/api/turnos/mios").catch(() => {});
+      });
+
+      expect(result.current.estaAutenticado).toBe(true);
+      expect(result.current.sesionVencida).toBe(false);
+    });
+
+    it("volver a iniciar sesión limpia el aviso de sesión vencida", async () => {
+      localStorage.setItem("usuario", JSON.stringify(usuario("PACIENTE")));
+      localStorage.setItem("token", "jwt-vencido");
+      vi.mocked(authApi.login).mockResolvedValue(respuesta);
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      servidorRespondeCon(401);
+      await act(async () => {
+        await apiClient.get("/api/turnos/mios").catch(() => {});
+      });
+      expect(result.current.sesionVencida).toBe(true);
+
+      await act(() => result.current.login("ana@clinica.test", "paciente123"));
+
+      expect(result.current.sesionVencida).toBe(false);
+      expect(result.current.estaAutenticado).toBe(true);
+    });
+
+    it("al salir del AuthProvider deja de escuchar (no queda un manejador huérfano)", async () => {
+      localStorage.setItem("token", "jwt-123");
+      const { unmount } = renderHook(() => useAuth(), { wrapper });
+      unmount();
+      servidorRespondeCon(401);
+
+      await expect(apiClient.get("/api/turnos/mios")).rejects.toThrow();
+
+      expect(localStorage.getItem("token")).toBe("jwt-123");
+    });
   });
 
   it("useAuth fuera de un AuthProvider avisa con un error claro", () => {

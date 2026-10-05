@@ -1,6 +1,6 @@
-import type { AxiosAdapter, InternalAxiosRequestConfig } from "axios";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { apiClient } from "./client";
+import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from "axios";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { apiClient, registrarManejadorDeSesionVencida, TIMEOUT_MS } from "./client";
 
 describe("apiClient", () => {
   const adaptadorOriginal = apiClient.defaults.adapter;
@@ -18,6 +18,7 @@ describe("apiClient", () => {
 
   afterEach(() => {
     apiClient.defaults.adapter = adaptadorOriginal;
+    registrarManejadorDeSesionVencida(null);
   });
 
   it("agrega el token guardado como Bearer en el header Authorization", async () => {
@@ -32,5 +33,65 @@ describe("apiClient", () => {
     await apiClient.get("/api/medicos");
 
     expect(ultimaConfig?.headers.Authorization).toBeUndefined();
+  });
+
+  it("corta los pedidos que tardan demasiado en vez de esperar para siempre", async () => {
+    await apiClient.get("/api/medicos");
+
+    expect(TIMEOUT_MS).toBe(15_000);
+    expect(ultimaConfig?.timeout).toBe(TIMEOUT_MS);
+  });
+
+  describe("sesión vencida", () => {
+    function responderCon(status: number) {
+      const adaptador: AxiosAdapter = async (config) => {
+        const respuesta = { data: { error: "x" }, status, statusText: "", headers: {}, config };
+        throw new AxiosError("fallo", "ERR_BAD_REQUEST", config, undefined, respuesta);
+      };
+      apiClient.defaults.adapter = adaptador;
+    }
+
+    it("un 401 con un token guardado avisa que la sesión venció y deja pasar el error", async () => {
+      const manejador = vi.fn();
+      registrarManejadorDeSesionVencida(manejador);
+      localStorage.setItem("token", "jwt-vencido");
+      responderCon(401);
+
+      await expect(apiClient.get("/api/turnos/mios")).rejects.toThrow();
+
+      expect(manejador).toHaveBeenCalledTimes(1);
+    });
+
+    it("un 401 sin token guardado no avisa nada (no había sesión que cerrar)", async () => {
+      const manejador = vi.fn();
+      registrarManejadorDeSesionVencida(manejador);
+      responderCon(401);
+
+      await expect(apiClient.get("/api/turnos/mios")).rejects.toThrow();
+
+      expect(manejador).not.toHaveBeenCalled();
+    });
+
+    it("un 401 de login o registro son credenciales incorrectas y no cierran la sesión", async () => {
+      const manejador = vi.fn();
+      registrarManejadorDeSesionVencida(manejador);
+      localStorage.setItem("token", "jwt-123");
+      responderCon(401);
+
+      await expect(apiClient.post("/api/auth/login", {})).rejects.toThrow();
+
+      expect(manejador).not.toHaveBeenCalled();
+    });
+
+    it.each([403, 404, 409, 500])("un %i no se confunde con una sesión vencida", async (status) => {
+      const manejador = vi.fn();
+      registrarManejadorDeSesionVencida(manejador);
+      localStorage.setItem("token", "jwt-123");
+      responderCon(status);
+
+      await expect(apiClient.get("/api/turnos/mios")).rejects.toThrow();
+
+      expect(manejador).not.toHaveBeenCalled();
+    });
   });
 });

@@ -1,8 +1,10 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "../api/auth";
+import { apiClient } from "../api/client";
+import { usuario } from "../test/fixtures";
 import { renderConSesion } from "../test/render";
 import { LoginPage } from "./LoginPage";
 
@@ -66,6 +68,22 @@ describe("LoginPage", () => {
     expect(screen.getByRole("button", { name: "Ingresando…" })).toBeDisabled();
     terminar(respuestaOk);
     await waitFor(() => expect(screen.getByTestId("ubicacion")).toHaveTextContent(/^\/$/));
+  });
+
+  it("muestra un aviso cuando la sesión se cerró sola porque el servidor dejó de aceptar el token", async () => {
+    const adaptadorOriginal = apiClient.defaults.adapter;
+    renderConSesion(<LoginPage />, { usuario: usuario("PACIENTE"), ruta: "/login", path: "/login" });
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+    apiClient.defaults.adapter = async (config) => {
+      throw new AxiosError("x", "ERR_BAD_REQUEST", config, undefined, { data: {}, status: 401, statusText: "", headers: {}, config });
+    };
+    await act(async () => {
+      await apiClient.get("/api/turnos/mios").catch(() => {});
+    });
+    apiClient.defaults.adapter = adaptadorOriginal;
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Tu sesión se cerró");
   });
 
   it("no deja enviar con los campos vacíos", async () => {

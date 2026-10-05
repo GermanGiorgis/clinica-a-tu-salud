@@ -52,3 +52,20 @@
   margin-top: var(--space-lg);
   color: var(--color-muted-foreground);
 }
+
+.auth-form .auth-form__nota {
+  background: var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  text-align: left;
+  margin-top: var(--space-md);
+}
+
+.auth-form__aviso {
+  background: var(--color-warning-bg);
+  color: #92400e;
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.88rem;
+  margin: 0;
+}

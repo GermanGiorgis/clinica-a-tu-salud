@@ -43,7 +43,7 @@ export function RegistroPage() {
           <label>Apellido<input required {...campo("apellido")} /></label>
         </div>
         <label>Email<input type="email" required {...campo("email")} /></label>
-        <label>Contraseña (mínimo 6 caracteres)<input type="password" minLength={6} required {...campo("password")} /></label>
+        <label>Contraseña (entre 10 y 72 caracteres)<input type="password" minLength={10} maxLength={72} required {...campo("password")} /></label>
         <label>Teléfono (opcional)<input {...campo("telefono")} /></label>
         <div className="auth-form__fila">
           <label>DNI<input required {...campo("dni")} /></label>
@@ -52,6 +52,10 @@ export function RegistroPage() {
         {error && <p className="auth-form__error">{error}</p>}
         <button type="submit" className="btn btn-primary" disabled={cargando}>{cargando ? "Creando cuenta…" : "Crear cuenta"}</button>
       </form>
+      <p className="auth-form__nota">
+        Para que te puedan dar turnos y ver tu historial, la clínica tiene que verificar tu identidad:
+        llevá tu DNI la primera vez que vengas.
+      </p>
       <p>¿Ya tenés cuenta? <Link to="/login">Iniciá sesión</Link></p>
     </main>
   );

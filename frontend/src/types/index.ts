@@ -199,3 +199,27 @@ export interface Metricas {
   facturacionPorMedioPago: MontoPorMedioPago[];
   medicos: MetricaMedico[];
 }
+
+export interface PacienteAVerificar {
+  id: number;
+  usuarioId: number;
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono: string | null;
+  dni: string;
+  fechaNacimiento: string;
+  identidadVerificada: boolean;
+  cuentaActiva: boolean;
+}
+
+export interface AccesoHistorial {
+  id: number;
+  usuarioId: number;
+  usuarioEmail: string;
+  usuarioNombre: string;
+  usuarioRol: Rol;
+  pacienteId: number;
+  pacienteNombre: string;
+  accedidoEn: string;
+}

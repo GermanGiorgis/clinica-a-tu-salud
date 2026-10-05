@@ -1,7 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import * as auditoriaApi from "./api/auditoria";
 import * as historialApi from "./api/historial";
+import * as pacientesApi from "./api/pacientes";
 import * as metricasApi from "./api/metricas";
 import * as turnosApi from "./api/turnos";
 import * as medicosApi from "./api/medicos";
@@ -11,6 +13,8 @@ import * as patologiasApi from "./api/patologias";
 import { metricas, usuario } from "./test/fixtures";
 import type { Rol } from "./types";
 
+vi.mock("./api/auditoria");
+vi.mock("./api/pacientes");
 vi.mock("./api/historial");
 vi.mock("./api/metricas");
 vi.mock("./api/turnos");
@@ -35,6 +39,8 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(metricasApi.obtenerMetricas).mockResolvedValue(metricas());
+    vi.mocked(pacientesApi.pacientesPendientes).mockResolvedValue([]);
+    vi.mocked(auditoriaApi.accesosHistorial).mockResolvedValue([]);
     vi.mocked(historialApi.historialDePaciente).mockResolvedValue([]);
     vi.mocked(historialApi.miHistorial).mockResolvedValue([]);
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
@@ -64,7 +70,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
   });
 
   describe("sin sesión, las pantallas privadas mandan a iniciar sesión", () => {
-    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
+    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/pendientes", "/auditoria", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
       "%s",
       (ruta) => {
         abrir(ruta);
@@ -86,6 +92,39 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
 
       expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
       expect(metricasApi.obtenerMetricas).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("verificar pacientes y auditoría: solo admin", () => {
+    it("el admin entra a verificar pacientes y se piden los pendientes", async () => {
+      abrir("/pacientes/pendientes", "ADMIN");
+
+      expect(await screen.findByText("No hay pacientes pendientes de verificación.")).toBeInTheDocument();
+      expect(pacientesApi.pacientesPendientes).toHaveBeenCalled();
+    });
+
+    it("el admin entra a la auditoría y se pide el registro de accesos", async () => {
+      abrir("/auditoria", "ADMIN");
+
+      expect(await screen.findByText("Todavía no se registró ningún acceso.")).toBeInTheDocument();
+      expect(auditoriaApi.accesosHistorial).toHaveBeenCalled();
+    });
+
+    it.each([["/pacientes/pendientes"], ["/auditoria"]])("%s: un médico y un paciente son mandados al inicio sin pedir nada", (ruta) => {
+      abrir(ruta, "MEDICO");
+      expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
+      cleanup();
+
+      abrir(ruta, "PACIENTE");
+      expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
+      expect(pacientesApi.pacientesPendientes).not.toHaveBeenCalled();
+      expect(auditoriaApi.accesosHistorial).not.toHaveBeenCalled();
+    });
+
+    it.each([["/pacientes/pendientes"], ["/auditoria"]])("%s: sin sesión manda a iniciar sesión", (ruta) => {
+      abrir(ruta);
+
+      expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
     });
   });
 

@@ -46,6 +46,20 @@ describe("Header", () => {
     expect(screen.queryByRole("link", { name: /Mis turnos/ })).not.toBeInTheDocument();
   });
 
+  it("solo el admin ve verificar pacientes y la auditoría", () => {
+    renderConSesion(<Header />, { usuario: usuario("ADMIN") });
+
+    expect(screen.getByRole("link", { name: /Verificar pacientes/ })).toHaveAttribute("href", "/pacientes/pendientes");
+    expect(screen.getByRole("link", { name: /Auditoría/ })).toHaveAttribute("href", "/auditoria");
+  });
+
+  it.each(["MEDICO", "PACIENTE"] as const)("un %s no ve verificar pacientes ni la auditoría", (rol) => {
+    renderConSesion(<Header />, { usuario: usuario(rol) });
+
+    expect(screen.queryByRole("link", { name: /Verificar pacientes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Auditoría/ })).not.toBeInTheDocument();
+  });
+
   it("marca como activo el enlace de la sección actual", () => {
     renderConSesion(<Header />, { usuario: usuario("ADMIN"), ruta: "/metricas" });
 
