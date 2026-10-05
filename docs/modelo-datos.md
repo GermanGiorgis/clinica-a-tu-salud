@@ -51,6 +51,8 @@ erDiagram
     TURNO ||--o| ENCUESTA : "se evalua en"
     TURNO ||--o| FACTURA : "se cobra en"
     FACTURA ||--|{ ITEM_FACTURA : "detalla"
+    USUARIO ||--o{ ACCESO_HISTORIAL : "accede"
+    PACIENTE ||--o{ ACCESO_HISTORIAL : "es consultado en"
 
     USUARIO {
         bigint id PK
@@ -66,8 +68,15 @@ erDiagram
     PACIENTE {
         bigint id PK
         bigint usuario_id FK, UK
-        string dni UK
+        string dni "UK solo entre verificados"
         date fecha_nacimiento
+        boolean identidad_verificada "la clinica la comprobo en persona"
+    }
+    ACCESO_HISTORIAL {
+        bigint id PK
+        bigint usuario_id FK "quien accedio (medico o admin)"
+        bigint paciente_id FK "de quien es el historial"
+        timestamp accedido_en
     }
     MEDICO {
         bigint id PK
@@ -114,6 +123,7 @@ erDiagram
         string estado "EstadoTurno"
         string motivo_consulta
         timestamp creado_en
+        bigint version "control optimista de concurrencia"
     }
     MOTIVO_CANCELACION {
         bigint id PK
@@ -271,20 +281,34 @@ stateDiagram-v2
 1. Los turnos salen de la grilla del médico: el `inicio` debe caer dentro de un
    `HorarioAtencion` de ese día y alinearse con `duracion_turno_min`. Los
    horarios libres se calculan (horarios menos turnos activos); no se guardan.
-2. Un médico no puede tener dos turnos activos (no cancelados) en el mismo
-   horario. Se garantiza **en la base de datos** con un índice único parcial
-   sobre `(medico_id, inicio)` donde `estado <> 'CANCELADO'`, además de la
-   validación en el servicio, para que dos reservas simultáneas no puedan
-   duplicar el turno.
-3. Un paciente no puede tener dos turnos activos superpuestos.
-4. No se reserva en el pasado ni más allá de una ventana configurable
-   (por ejemplo, 60 días).
+2. Un médico no puede tener dos turnos activos (no cancelados) que se pisen en
+   el tiempo. Se garantiza **en la base de datos** con una restricción
+   `EXCLUDE` (extensión `btree_gist`) sobre `(medico_id, rango [inicio, fin))`
+   donde `estado <> 'CANCELADO'`, además de la validación en el servicio:
+   así dos reservas simultáneas no pueden duplicar el turno, y tampoco
+   solaparse si el horario cambió de duración. Los horarios libres se
+   calculan por intersección de intervalos, no comparando horas de inicio.
+3. Un paciente no puede tener dos turnos activos superpuestos (misma
+   restricción `EXCLUDE`, sobre `paciente_id`): ni siquiera pidiendo dos
+   médicos a la vez.
+4. No se reserva en el pasado ni más allá de la ventana de 60 días; la
+   disponibilidad tampoco ofrece horarios fuera de esa ventana.
 5. El paciente solo puede cancelar con una anticipación mínima configurable
    (por ejemplo, 2 horas). El médico (sus propios turnos) y el admin
    (cualquiera) pueden cancelar siempre, sin esa restricción. Toda
    cancelación exige un `MotivoCancelacion`.
 6. Los horarios de un mismo médico no se pisan entre sí, y un consultorio no
-   puede tener dos médicos en el mismo horario.
+   puede tener dos médicos en el mismo horario. Un horario no se puede
+   eliminar ni modificar si algún turno activo (`RESERVADO` o `CONFIRMADO`,
+   de hoy en adelante) dejaría de encajar en él (otro día, consultorio,
+   duración o fuera de rango): primero hay que cancelar o reprogramar esos
+   turnos. Ampliar la franja manteniendo la grilla sí se permite.
+6b. Dos personas que modifican el mismo turno a la vez (por ejemplo, el
+   paciente cancela mientras el médico lo marca ausente) no se pisan en
+   silencio: `Turno` tiene control optimista (`@Version`) y la segunda
+   operación recibe un 409.
+6c. Todas las reglas que dependen de "ahora" usan la zona horaria de la
+   clínica (`clinica.zona-horaria`), no la del servidor.
 7. Un paciente puede elegir una `Patologia` al buscar turno; el sistema la
    traduce a su `Especialidad` y filtra los médicos que la ejercen. Es solo
    un filtro de ayuda: el paciente igual puede elegir cualquier médico
@@ -303,12 +327,41 @@ stateDiagram-v2
 **Acceso a los datos (mínimo privilegio)**
 
 10. El **paciente** solo ve y gestiona sus propios turnos.
-11. El **médico** ve el historial de los pacientes con los que tiene o tuvo
-    turnos, y gestiona (reserva, confirma, cancela, marca ausente) los turnos
-    de su propia agenda.
+11. El **médico** gestiona (reserva, confirma, cancela, marca ausente) los
+    turnos de su propia agenda, y ve el historial completo de un paciente
+    solo si tiene con él un turno `RESERVADO`, `CONFIRMADO` o `ATENDIDO`
+    **que no creó él mismo** y la identidad del paciente está verificada.
+    La condición del creador importa: un médico puede reservar a nombre de
+    cualquier paciente por DNI, y si eso alcanzara, cualquier médico podría
+    leer cualquier historial reservando (y cancelando) un turno. Un turno
+    cancelado o ausente no habilita nada.
 12. El **admin** gestiona usuarios, catálogos, y puede gestionar la agenda y
     los turnos de cualquier médico — las mismas acciones que tiene el médico
-    sobre la suya.
+    sobre la suya. También verifica identidades, activa o desactiva cuentas
+    y consulta la auditoría y las métricas.
+
+**Identidad, cuentas y auditoría**
+
+13. Cualquiera puede registrarse como paciente con cualquier DNI, así que el
+    DNI **no se valida contra otros pacientes al registrarse** (avisar "ese
+    DNI ya existe" revelaría quién se atiende en la clínica). La cuenta nace
+    con `identidad_verificada = false`. El personal compara en persona los
+    datos con el documento y verifica la cuenta; recién entonces el DNI pasa
+    a ser único (índice parcial) y es posible reservar a su nombre por DNI y
+    que un médico vea su historial. Los pacientes dados de alta por un admin
+    nacen verificados.
+14. Cada acceso de un médico o un admin al historial de otra persona queda
+    registrado (`acceso_historial`: quién, a quién, cuándo). El registro solo
+    se agrega, y el admin lo consulta.
+15. Contraseñas de al menos 10 caracteres y como máximo 72 bytes (límite de
+    BCrypt). Tras 5 intentos fallidos de login para un email, o 30 desde una
+    IP, en 15 minutos, se responde 429 aunque llegue la contraseña correcta;
+    las altas de cuenta se limitan a 10 por IP por hora.
+16. El primer `ADMIN` se crea desde `ADMIN_EMAIL` y `ADMIN_PASSWORD`; el
+    admin de demostración existe solo si se activa explícitamente
+    (`SEED_DEMO_ADMIN`), y es solo para desarrollo local.
+17. Un admin puede desactivar cualquier cuenta menos la suya. El efecto es
+    inmediato: el filtro JWT consulta la base en cada pedido.
 
 ## Cambios respecto al trabajo original
 
@@ -331,3 +384,5 @@ stateDiagram-v2
 
 Bloqueos de agenda (vacaciones, licencias), recordatorios por mail, subida de
 archivos de resultados, integraciones con sistemas de facturación oficiales.
+Ver también las limitaciones conocidas del README (reprogramación y avisos,
+cierre automático de turnos vencidos, rol de recepción, verificación de email).
