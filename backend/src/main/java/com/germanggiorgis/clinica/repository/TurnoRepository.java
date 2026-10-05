@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 public interface TurnoRepository extends JpaRepository<Turno, Long> {
@@ -22,6 +23,8 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
     List<Turno> findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(Long medicoId, LocalDateTime desde);
     List<Turno> findByPacienteIdAndEstadoOrderByInicioDesc(Long pacienteId, EstadoTurno estado);
     boolean existsByMedicoIdAndPacienteId(Long medicoId, Long pacienteId);
+    List<Turno> findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(
+            Long medicoId, Collection<EstadoTurno> estados, LocalDateTime desde);
 
     // Agregados para el panel de métricas: los calcula la base, no se cargan los turnos.
     @Query("select new com.germanggiorgis.clinica.dto.ConteoPorEstado(t.estado, count(t)) "

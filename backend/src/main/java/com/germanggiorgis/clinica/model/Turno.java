@@ -11,6 +11,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -84,4 +85,11 @@ public class Turno {
     @Builder.Default
     @Column(name = "creado_en", nullable = false, updatable = false)
     private LocalDateTime creadoEn = LocalDateTime.now();
+
+    /**
+     * Control de concurrencia optimista: si dos transacciones modifican el mismo turno a la vez,
+     * la segunda falla en vez de pisar el cambio de la primera (ver V7).
+     */
+    @Version
+    private Long version;
 }

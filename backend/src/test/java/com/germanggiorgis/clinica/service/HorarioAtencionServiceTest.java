@@ -3,12 +3,15 @@ package com.germanggiorgis.clinica.service;
 import com.germanggiorgis.clinica.dto.HorarioAtencionRequest;
 import com.germanggiorgis.clinica.dto.HorarioAtencionResponse;
 import com.germanggiorgis.clinica.model.Consultorio;
+import com.germanggiorgis.clinica.model.EstadoTurno;
 import com.germanggiorgis.clinica.model.HorarioAtencion;
 import com.germanggiorgis.clinica.model.Medico;
+import com.germanggiorgis.clinica.model.Turno;
 import com.germanggiorgis.clinica.model.Usuario;
 import com.germanggiorgis.clinica.repository.ConsultorioRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
+import com.germanggiorgis.clinica.repository.TurnoRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -18,13 +21,19 @@ import org.springframework.http.HttpStatus;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Optional;
 
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -36,6 +45,8 @@ class HorarioAtencionServiceTest {
     private MedicoRepository medicoRepository;
     @Mock
     private ConsultorioRepository consultorioRepository;
+    @Mock
+    private TurnoRepository turnoRepository;
 
     @InjectMocks
     private HorarioAtencionService horarioAtencionService;
@@ -139,6 +150,8 @@ class HorarioAtencionServiceTest {
         when(horarioAtencionRepository.findByConsultorioIdAndDiaSemana(1L, DayOfWeek.MONDAY)).thenReturn(List.of(propio));
         when(horarioAtencionRepository.save(any(HorarioAtencion.class))).thenAnswer(inv -> inv.getArgument(0));
 
+        turnosActivosDelMedico();
+
         // Mismo horario (9-11), no debería chocar contra si mismo.
         HorarioAtencionResponse respuesta = horarioAtencionService.actualizar(5L, request(1L, 1L, LocalTime.of(9, 0), LocalTime.of(11, 0)));
 
@@ -161,5 +174,149 @@ class HorarioAtencionServiceTest {
     void listar_sin_filtro_devuelve_todos() {
         when(horarioAtencionRepository.findAll()).thenReturn(List.of());
         assertThat(horarioAtencionService.listar(null)).isEmpty();
+    }
+
+    // --- un horario no se puede cambiar ni borrar si hay turnos activos que dependen de él ---
+
+    private HorarioAtencion lunes9a12() {
+        return HorarioAtencion.builder().id(5L).medico(medico(1L)).consultorio(consultorio(1L))
+                .diaSemana(DayOfWeek.MONDAY).horaInicio(LocalTime.of(9, 0)).horaFin(LocalTime.of(12, 0))
+                .duracionTurnoMin(30).vigenteDesde(LocalDate.of(2026, 1, 1)).build();
+    }
+
+    private LocalDate proximoLunes() {
+        return LocalDate.now().with(TemporalAdjusters.next(DayOfWeek.MONDAY));
+    }
+
+    private Turno turnoActivo(LocalDate fecha, LocalTime hora, long consultorioId) {
+        Usuario paciente = Usuario.builder().id(9L).email("p@clinica.test").rol(com.germanggiorgis.clinica.model.Rol.PACIENTE)
+                .nombre("P").apellido("P").activo(true).build();
+        LocalDateTime inicio = LocalDateTime.of(fecha, hora);
+        return Turno.builder().id(70L).medico(medico(1L)).consultorio(consultorio(consultorioId)).creadoPor(paciente)
+                .inicio(inicio).fin(inicio.plusMinutes(30)).estado(EstadoTurno.RESERVADO).build();
+    }
+
+    private void turnosActivosDelMedico(Turno... turnos) {
+        when(turnoRepository.findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(eq(1L), anyCollection(), any(LocalDateTime.class)))
+                .thenReturn(List.of(turnos));
+    }
+
+    private HorarioAtencionRequest cambio(DayOfWeek dia, long consultorioId, LocalTime inicio, LocalTime fin, int duracion) {
+        return new HorarioAtencionRequest(1L, consultorioId, dia, inicio, fin, duracion, LocalDate.of(2026, 1, 1), null);
+    }
+
+    private void prepararActualizacion(HorarioAtencion horario) {
+        prepararActualizacion(horario, 1L);
+    }
+
+    /** consultorioDelCambio: el consultorio que va a pedir la actualización. */
+    private void prepararActualizacion(HorarioAtencion horario, long consultorioDelCambio) {
+        when(horarioAtencionRepository.findById(5L)).thenReturn(Optional.of(horario));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico(1L)));
+        when(consultorioRepository.findById(consultorioDelCambio)).thenReturn(Optional.of(consultorio(consultorioDelCambio)));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(any(), any())).thenReturn(List.of(horario));
+        when(horarioAtencionRepository.findByConsultorioIdAndDiaSemana(any(), any())).thenReturn(List.of(horario));
+    }
+
+    @Test
+    void eliminar_con_turnos_activos_futuros_es_409_y_no_borra() {
+        HorarioAtencion horario = lunes9a12();
+        when(horarioAtencionRepository.findById(5L)).thenReturn(Optional.of(horario));
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(10, 0), 1L));
+
+        assertStatus(() -> horarioAtencionService.eliminar(5L), HttpStatus.CONFLICT);
+
+        verify(horarioAtencionRepository, never()).delete(any(HorarioAtencion.class));
+    }
+
+    @Test
+    void eliminar_ignora_turnos_de_otro_dia_o_de_otro_consultorio_o_fuera_de_franja() {
+        HorarioAtencion horario = lunes9a12();
+        when(horarioAtencionRepository.findById(5L)).thenReturn(Optional.of(horario));
+        turnosActivosDelMedico(
+                turnoActivo(proximoLunes().plusDays(1), LocalTime.of(10, 0), 1L),   // martes
+                turnoActivo(proximoLunes(), LocalTime.of(10, 0), 2L),               // otro consultorio
+                turnoActivo(proximoLunes(), LocalTime.of(15, 0), 1L));              // fuera de 9 a 12
+
+        horarioAtencionService.eliminar(5L);
+
+        verify(horarioAtencionRepository).delete(horario);
+    }
+
+    @Test
+    void eliminar_sin_turnos_activos_borra() {
+        HorarioAtencion horario = lunes9a12();
+        when(horarioAtencionRepository.findById(5L)).thenReturn(Optional.of(horario));
+        turnosActivosDelMedico();
+
+        horarioAtencionService.eliminar(5L);
+
+        verify(horarioAtencionRepository).delete(horario);
+    }
+
+    @Test
+    void cambiar_la_duracion_con_turnos_activos_es_409() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario);
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(9, 30), 1L));
+
+        assertStatus(() -> horarioAtencionService.actualizar(5L, cambio(DayOfWeek.MONDAY, 1L, LocalTime.of(9, 0), LocalTime.of(12, 0), 20)),
+                HttpStatus.CONFLICT);
+
+        verify(horarioAtencionRepository, never()).save(any(HorarioAtencion.class));
+    }
+
+    @Test
+    void cambiar_el_dia_con_turnos_activos_es_409() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario);
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(10, 0), 1L));
+
+        assertStatus(() -> horarioAtencionService.actualizar(5L, cambio(DayOfWeek.TUESDAY, 1L, LocalTime.of(9, 0), LocalTime.of(12, 0), 30)),
+                HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void cambiar_de_consultorio_con_turnos_activos_es_409() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario, 2L);
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(10, 0), 1L));
+
+        assertStatus(() -> horarioAtencionService.actualizar(5L, cambio(DayOfWeek.MONDAY, 2L, LocalTime.of(9, 0), LocalTime.of(12, 0), 30)),
+                HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void acortar_el_horario_y_dejar_un_turno_afuera_es_409() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario);
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(11, 0), 1L));
+
+        assertStatus(() -> horarioAtencionService.actualizar(5L, cambio(DayOfWeek.MONDAY, 1L, LocalTime.of(9, 0), LocalTime.of(10, 30), 30)),
+                HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void ampliar_el_horario_manteniendo_la_grilla_se_permite_aunque_haya_turnos() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario);
+        when(horarioAtencionRepository.save(any(HorarioAtencion.class))).thenAnswer(inv -> inv.getArgument(0));
+        turnosActivosDelMedico(turnoActivo(proximoLunes(), LocalTime.of(10, 0), 1L));
+
+        HorarioAtencionResponse r = horarioAtencionService.actualizar(5L, cambio(DayOfWeek.MONDAY, 1L, LocalTime.of(9, 0), LocalTime.of(14, 0), 30));
+
+        assertThat(r.horaFin()).isEqualTo(LocalTime.of(14, 0));
+    }
+
+    @Test
+    void sin_turnos_que_dependan_de_el_se_puede_cambiar_la_duracion() {
+        HorarioAtencion horario = lunes9a12();
+        prepararActualizacion(horario);
+        when(horarioAtencionRepository.save(any(HorarioAtencion.class))).thenAnswer(inv -> inv.getArgument(0));
+        turnosActivosDelMedico();
+
+        HorarioAtencionResponse r = horarioAtencionService.actualizar(5L, cambio(DayOfWeek.MONDAY, 1L, LocalTime.of(9, 0), LocalTime.of(12, 0), 20));
+
+        assertThat(r.duracionTurnoMin()).isEqualTo(20);
     }
 }

@@ -33,8 +33,6 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * El corazón del proyecto: calcula horarios libres a partir de
@@ -73,12 +71,10 @@ public class TurnoService {
             return new DisponibilidadResponse(fecha, List.of());
         }
 
-        Set<LocalTime> ocupados = turnoRepository
-                .findByMedicoIdAndInicioBetweenAndEstadoNot(
-                        medicoId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO)
-                .stream()
-                .map(t -> t.getInicio().toLocalTime())
-                .collect(Collectors.toSet());
+        // Se comparan intervalos, no horas de inicio: si el horario cambió de duración, un turno
+        // viejo de 09:30 a 10:00 tiene que bloquear también un slot nuevo que empiece a las 09:40.
+        List<Turno> activos = turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(
+                medicoId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO);
 
         LocalDateTime ahora = LocalDateTime.now();
         List<LocalTime> libres = new ArrayList<>();
@@ -93,7 +89,8 @@ public class TurnoService {
             for (int i = 0; i < cantidadSlots; i++) {
                 LocalTime cursor = horario.getHoraInicio().plusMinutes((long) i * horario.getDuracionTurnoMin());
                 LocalDateTime inicioSlot = LocalDateTime.of(fecha, cursor);
-                if (!ocupados.contains(cursor) && inicioSlot.isAfter(ahora)) {
+                LocalDateTime finSlot = inicioSlot.plusMinutes(horario.getDuracionTurnoMin());
+                if (inicioSlot.isAfter(ahora) && !seSolapaConAlguno(activos, inicioSlot, finSlot)) {
                     libres.add(cursor);
                 }
             }
@@ -125,6 +122,12 @@ public class TurnoService {
 
         LocalDateTime fin = inicio.plusMinutes(horario.getDuracionTurnoMin());
 
+        List<Turno> activosDelMedico = turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(
+                medico.getId(), fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO);
+        if (seSolapaConAlguno(activosDelMedico, inicio, fin)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese horario ya no está disponible, elegí otro");
+        }
+
         boolean pacienteOcupado = turnoRepository
                 .findByPacienteIdAndEstadoNotAndInicioBetween(
                         paciente.getId(), EstadoTurno.CANCELADO, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay())
@@ -150,9 +153,11 @@ public class TurnoService {
         try {
             return TurnoResponse.from(turnoRepository.saveAndFlush(turno));
         } catch (DataIntegrityViolationException ex) {
-            // Perdió la carrera contra el índice único parcial: alguien reservó ese
-            // mismo horario una fracción de segundo antes.
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese horario ya fue reservado, elegí otro");
+            // Perdió la carrera contra una restricción de la base (V7): otro pedido simultáneo
+            // ocupó ese horario del médico, o el mismo paciente reservó otro turno a esa hora.
+            throw new ResponseStatusException(HttpStatus.CONFLICT, esChoqueDelPaciente(ex)
+                    ? "Ya tenés un turno reservado en ese horario"
+                    : "Ese horario ya fue reservado, elegí otro");
         }
     }
 
@@ -290,6 +295,15 @@ public class TurnoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esa afiliación no es del paciente");
         }
         return afiliacion;
+    }
+
+    private boolean seSolapaConAlguno(List<Turno> turnos, LocalDateTime inicio, LocalDateTime fin) {
+        return turnos.stream().anyMatch(t -> inicio.isBefore(t.getFin()) && t.getInicio().isBefore(fin));
+    }
+
+    private boolean esChoqueDelPaciente(DataIntegrityViolationException ex) {
+        String causa = ex.getMostSpecificCause().getMessage();
+        return causa != null && causa.contains("ex_turno_paciente_sin_solapes");
     }
 
     private List<HorarioAtencion> horariosVigentes(Long medicoId, LocalDate fecha) {

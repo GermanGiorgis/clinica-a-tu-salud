@@ -28,6 +28,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -38,8 +39,11 @@ import java.util.Optional;
 
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -298,6 +302,78 @@ class TurnoServiceTest {
 
         CrearTurnoRequest request = new CrearTurnoRequest(1L, inicio, null, null, null);
         assertStatus(() -> turnoService.crear(request), HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void disponibilidad_bloquea_un_slot_que_se_solapa_con_un_turno_aunque_empiecen_a_horas_distintas() {
+        // Caso real: el horario cambió de 30 a 20 minutos y quedó un turno viejo de 09:10 a 09:40.
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        Consultorio consultorio = consultorio(1L);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        HorarioAtencion horario = horario(medico, consultorio, fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(10, 0), 20);
+        Turno viejo = turno(1L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico, consultorio,
+                LocalDateTime.of(fecha, LocalTime.of(9, 10)), EstadoTurno.RESERVADO);
+        viejo.setFin(LocalDateTime.of(fecha, LocalTime.of(9, 40)));
+
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), eq(EstadoTurno.CANCELADO)))
+                .thenReturn(List.of(viejo));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fecha);
+
+        // 09:00-09:20 y 09:20-09:40 pisan al turno; 09:40-10:00 empieza justo cuando termina.
+        assertThat(respuesta.horariosLibres()).containsExactly(LocalTime.of(9, 40));
+    }
+
+    @Test
+    void crear_rechaza_un_horario_que_se_solapa_con_un_turno_del_medico_aunque_no_empiece_igual() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        Consultorio consultorio = consultorio(1L);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        HorarioAtencion horario = horario(medico, consultorio, fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 20);
+        // Turno viejo de 09:30 a 10:00 (de cuando el horario era de 30 minutos).
+        Turno viejo = turno(5L, paciente(9L, usuario(9L, Rol.PACIENTE)), medico, consultorio,
+                LocalDateTime.of(fecha, LocalTime.of(9, 30)), EstadoTurno.RESERVADO);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), eq(EstadoTurno.CANCELADO)))
+                .thenReturn(List.of(viejo));
+
+        CrearTurnoRequest request = new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 40)), null, null, null);
+
+        assertStatus(() -> turnoService.crear(request), HttpStatus.CONFLICT);
+        verify(turnoRepository, never()).saveAndFlush(any(Turno.class));
+    }
+
+    @Test
+    void crear_distingue_en_el_mensaje_si_choco_el_horario_del_medico_o_el_del_paciente() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        LocalDateTime inicio = LocalDateTime.of(fecha, LocalTime.of(9, 0));
+        HorarioAtencion horario = horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
+        when(turnoRepository.saveAndFlush(any(Turno.class)))
+                .thenThrow(new DataIntegrityViolationException("x", new RuntimeException("violates exclusion constraint \"ex_turno_paciente_sin_solapes\"")))
+                .thenThrow(new DataIntegrityViolationException("x", new RuntimeException("violates exclusion constraint \"ex_turno_medico_sin_solapes\"")));
+
+        CrearTurnoRequest request = new CrearTurnoRequest(1L, inicio, null, null, null);
+
+        assertThatThrownBy(() -> turnoService.crear(request))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("Ya tenés un turno reservado en ese horario");
+        assertThatThrownBy(() -> turnoService.crear(request))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("Ese horario ya fue reservado");
     }
 
     @Test

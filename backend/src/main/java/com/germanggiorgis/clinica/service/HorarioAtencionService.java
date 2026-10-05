@@ -3,17 +3,23 @@ package com.germanggiorgis.clinica.service;
 import com.germanggiorgis.clinica.dto.HorarioAtencionRequest;
 import com.germanggiorgis.clinica.dto.HorarioAtencionResponse;
 import com.germanggiorgis.clinica.model.Consultorio;
+import com.germanggiorgis.clinica.model.EstadoTurno;
 import com.germanggiorgis.clinica.model.HorarioAtencion;
 import com.germanggiorgis.clinica.model.Medico;
+import com.germanggiorgis.clinica.model.Turno;
 import com.germanggiorgis.clinica.repository.ConsultorioRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
+import com.germanggiorgis.clinica.repository.TurnoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
@@ -38,6 +44,7 @@ public class HorarioAtencionService {
     private final HorarioAtencionRepository horarioAtencionRepository;
     private final MedicoRepository medicoRepository;
     private final ConsultorioRepository consultorioRepository;
+    private final TurnoRepository turnoRepository;
 
     public List<HorarioAtencionResponse> listar(Long medicoId) {
         List<HorarioAtencion> horarios = medicoId != null
@@ -70,6 +77,7 @@ public class HorarioAtencionService {
         Medico medico = obtenerMedico(request.medicoId());
         Consultorio consultorio = obtenerConsultorio(request.consultorioId());
         validar(request, id);
+        verificarQueNingunTurnoQuedeHuerfano(horario, request);
 
         horario.setMedico(medico);
         horario.setConsultorio(consultorio);
@@ -84,7 +92,70 @@ public class HorarioAtencionService {
     }
 
     public void eliminar(Long id) {
-        horarioAtencionRepository.delete(obtener(id));
+        HorarioAtencion horario = obtener(id);
+        int dependientes = turnosActivosQueDependenDe(horario).size();
+        if (dependientes > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede eliminar el horario: hay " + dependientes + " turno(s) reservado(s) o confirmado(s) que dependen de él. "
+                            + "Cancelalos o reprogramalos primero");
+        }
+        horarioAtencionRepository.delete(horario);
+    }
+
+    /**
+     * Un cambio de horario no puede dejar turnos activos "en el aire": cada turno futuro que cae
+     * dentro del horario actual tiene que seguir encajando exactamente en el horario ya modificado
+     * (mismo médico, consultorio y día, y en la grilla de la nueva duración).
+     */
+    private void verificarQueNingunTurnoQuedeHuerfano(HorarioAtencion actual, HorarioAtencionRequest nuevo) {
+        long huerfanos = turnosActivosQueDependenDe(actual).stream()
+                .filter(turno -> !sigueEncajando(turno, nuevo))
+                .count();
+        if (huerfanos > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No se puede modificar el horario: " + huerfanos + " turno(s) reservado(s) o confirmado(s) quedarían fuera de la nueva agenda. "
+                            + "Cancelalos o reprogramalos primero");
+        }
+    }
+
+    /** Turnos RESERVADO o CONFIRMADO, de hoy en adelante, que caen dentro de este horario. */
+    private List<Turno> turnosActivosQueDependenDe(HorarioAtencion horario) {
+        return turnoRepository.findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(
+                        horario.getMedico().getId(),
+                        List.of(EstadoTurno.RESERVADO, EstadoTurno.CONFIRMADO),
+                        LocalDateTime.now()).stream()
+                .filter(turno -> cubre(horario, turno))
+                .toList();
+    }
+
+    private boolean cubre(HorarioAtencion horario, Turno turno) {
+        LocalDate fecha = turno.getInicio().toLocalDate();
+        LocalTime hora = turno.getInicio().toLocalTime();
+        return turno.getConsultorio().getId().equals(horario.getConsultorio().getId())
+                && fecha.getDayOfWeek() == horario.getDiaSemana()
+                && !fecha.isBefore(horario.getVigenteDesde())
+                && (horario.getVigenteHasta() == null || !fecha.isAfter(horario.getVigenteHasta()))
+                && !hora.isBefore(horario.getHoraInicio())
+                && hora.isBefore(horario.getHoraFin());
+    }
+
+    private boolean sigueEncajando(Turno turno, HorarioAtencionRequest nuevo) {
+        LocalDate fecha = turno.getInicio().toLocalDate();
+        LocalTime hora = turno.getInicio().toLocalTime();
+        long duracionDelTurno = Duration.between(turno.getInicio(), turno.getFin()).toMinutes();
+        if (!turno.getMedico().getId().equals(nuevo.medicoId())
+                || !turno.getConsultorio().getId().equals(nuevo.consultorioId())
+                || fecha.getDayOfWeek() != nuevo.diaSemana()
+                || fecha.isBefore(nuevo.vigenteDesde())
+                || (nuevo.vigenteHasta() != null && fecha.isAfter(nuevo.vigenteHasta()))
+                || duracionDelTurno != nuevo.duracionTurnoMin()
+                || hora.isBefore(nuevo.horaInicio())) {
+            return false;
+        }
+        // Se compara con Duration.between y no sumando minutos a una hora (ver TurnoService.encajaEnHorario).
+        long minutosDesdeInicio = Duration.between(nuevo.horaInicio(), hora).toMinutes();
+        long minutosHastaFin = Duration.between(hora, nuevo.horaFin()).toMinutes();
+        return minutosDesdeInicio % nuevo.duracionTurnoMin() == 0 && minutosHastaFin >= nuevo.duracionTurnoMin();
     }
 
     private void validar(HorarioAtencionRequest request, Long idAIgnorar) {
