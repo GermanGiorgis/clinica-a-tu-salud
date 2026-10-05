@@ -63,6 +63,16 @@ body {
   color: var(--color-foreground);
 }
 
+/* Foto de fondo fija. Va en un pseudo-elemento y no en background-attachment: fixed,
+   que en iOS se ignora. El archivo es el original, servido tal cual desde public/. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--color-background) url("/fondo-hospital.jpg") center / cover no-repeat;
+}
+
 h1,
 h2,
 h3,
@@ -108,15 +118,26 @@ button {
 
 /* --- Layout --- */
 
+/* El contenido va sobre un panel casi opaco para que se lea bien con la foto detrás. */
 .page {
   max-width: 880px;
-  margin: 0 auto;
-  padding: var(--space-2xl) var(--space-lg) var(--space-2xl);
+  margin: var(--space-xl) auto;
+  padding: var(--space-xl) var(--space-xl) var(--space-2xl);
+  background: rgba(255, 255, 255, 0.94);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(6px);
+}
+
+@media (max-width: 920px) {
+  .page {
+    margin: var(--space-md);
+  }
 }
 
 @media (max-width: 640px) {
   .page {
-    padding: var(--space-xl) var(--space-md) var(--space-xl);
+    padding: var(--space-lg) var(--space-md) var(--space-xl);
   }
 }
 
