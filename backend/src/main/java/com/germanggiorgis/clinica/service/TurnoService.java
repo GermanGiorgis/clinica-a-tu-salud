@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -57,14 +58,21 @@ public class TurnoService {
     private final MotivoCancelacionRepository motivoCancelacionRepository;
     private final AfiliacionRepository afiliacionRepository;
     private final UsuarioContextService usuarioContextService;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public DisponibilidadResponse disponibilidad(Long medicoId, LocalDate fecha) {
-        if (fecha.isBefore(LocalDate.now())) {
+        if (fecha.isBefore(LocalDate.now(clock))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha no puede ser pasada");
         }
         medicoRepository.findById(medicoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Médico no encontrado"));
+
+        // Más allá de la ventana de reserva no se puede reservar: no se ofrecen horarios que después
+        // el POST /api/turnos rechazaría con "tanta anticipación".
+        if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
+            return new DisponibilidadResponse(fecha, List.of());
+        }
 
         List<HorarioAtencion> horarios = horariosVigentes(medicoId, fecha);
         if (horarios.isEmpty()) {
@@ -76,7 +84,7 @@ public class TurnoService {
         List<Turno> activos = turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(
                 medicoId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO);
 
-        LocalDateTime ahora = LocalDateTime.now();
+        LocalDateTime ahora = LocalDateTime.now(clock);
         List<LocalTime> libres = new ArrayList<>();
         for (HorarioAtencion horario : horarios) {
             // Se itera por cantidad de slots (no sumando minutos hasta "pasarse" de
@@ -107,10 +115,10 @@ public class TurnoService {
 
         LocalDateTime inicio = request.inicio();
         LocalDate fecha = inicio.toLocalDate();
-        if (inicio.isBefore(LocalDateTime.now())) {
+        if (inicio.isBefore(LocalDateTime.now(clock))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar en el pasado");
         }
-        if (fecha.isAfter(LocalDate.now().plusDays(VENTANA_RESERVA_DIAS))) {
+        if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar con tanta anticipación");
         }
 
@@ -199,7 +207,7 @@ public class TurnoService {
                 ? turnoRepository.findByMedicoIdAndInicioBetweenOrderByInicioAsc(
                         medicoId, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay())
                 : turnoRepository.findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(
-                        medicoId, LocalDate.now().atStartOfDay());
+                        medicoId, LocalDate.now(clock).atStartOfDay());
         return turnos.stream().map(TurnoResponse::from).toList();
     }
 
@@ -214,7 +222,7 @@ public class TurnoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ese turno ya no se puede cancelar");
         }
         if (usuarioActual.getRol() == Rol.PACIENTE) {
-            long horasHastaElTurno = Duration.between(LocalDateTime.now(), turno.getInicio()).toHours();
+            long horasHastaElTurno = Duration.between(LocalDateTime.now(clock), turno.getInicio()).toHours();
             if (horasHastaElTurno < ANTICIPACION_MINIMA_CANCELACION_HORAS) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Para cancelar necesitás al menos " + ANTICIPACION_MINIMA_CANCELACION_HORAS + " horas de anticipación");

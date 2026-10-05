@@ -25,16 +25,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.time.ZoneId;
 import java.util.Optional;
 
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
@@ -42,6 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -69,9 +74,20 @@ class TurnoServiceTest {
     private AfiliacionRepository afiliacionRepository;
     @Mock
     private UsuarioContextService usuarioContextService;
+    /** Reloj real por defecto; los tests de zona horaria lo fijan con {@link #ahoraEs}. */
+    @Spy
+    private Clock clock = Clock.systemDefaultZone();
 
     @InjectMocks
     private TurnoService turnoService;
+
+    private static final ZoneId BUENOS_AIRES = ZoneId.of("America/Argentina/Buenos_Aires");
+
+    /** Fija el reloj: el instante UTC dado, visto desde la zona dada. */
+    private void ahoraEs(String instanteUtc, ZoneId zona) {
+        doReturn(Instant.parse(instanteUtc)).when(clock).instant();
+        doReturn(zona).when(clock).getZone();
+    }
 
     private Usuario usuario(long id, Rol rol) {
         return Usuario.builder().id(id).email("u" + id + "@clinica.test").passwordHash("x")
@@ -579,6 +595,86 @@ class TurnoServiceTest {
 
         assertThat(respuesta.estado()).isEqualTo(EstadoTurno.CANCELADO);
         assertThat(respuesta.motivoCancelacionNombre()).isEqualTo("No puede asistir");
+    }
+
+    // --- la ventana de reserva es de 60 días, también para lo que se ofrece ---
+
+    @Test
+    void disponibilidad_no_ofrece_horarios_mas_alla_de_la_ventana_de_reserva() {
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fechaFueraDeVentana = LocalDate.now().plusDays(61);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fechaFueraDeVentana);
+
+        assertThat(respuesta.horariosLibres()).isEmpty();
+        verify(horarioAtencionRepository, never()).findByMedicoIdAndDiaSemana(any(), any());
+    }
+
+    @Test
+    void disponibilidad_si_ofrece_el_ultimo_dia_de_la_ventana() {
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate ultimoDia = LocalDate.now().plusDays(60);
+        HorarioAtencion horario = horario(medico, consultorio(1L), ultimoDia.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(10, 0), 30);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, ultimoDia.getDayOfWeek())).thenReturn(List.of(horario));
+
+        assertThat(turnoService.disponibilidad(1L, ultimoDia).horariosLibres()).containsExactly(LocalTime.of(9, 0), LocalTime.of(9, 30));
+    }
+
+    // --- la hora la define la zona de la clínica, no la del servidor ---
+
+    @Test
+    void disponibilidad_usa_la_hora_de_la_clinica_para_saber_que_horarios_ya_pasaron() {
+        // 15:00 en Buenos Aires (18:00 UTC) del jueves 10/01/2030
+        ahoraEs("2030-01-10T18:00:00Z", BUENOS_AIRES);
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.of(2030, 1, 10);
+        HorarioAtencion horario = horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(18, 0), 30);
+
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fecha);
+
+        assertThat(respuesta.horariosLibres()).first().isEqualTo(LocalTime.of(15, 30));
+        assertThat(respuesta.horariosLibres()).last().isEqualTo(LocalTime.of(17, 30));
+    }
+
+    @Test
+    void el_dia_de_hoy_es_el_de_la_clinica_aunque_en_UTC_ya_sea_manana() {
+        // A las 23:00 del 09/01 en Buenos Aires ya son las 02:00 del 10/01 en UTC.
+        ahoraEs("2030-01-10T02:00:00Z", BUENOS_AIRES);
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(any(), any())).thenReturn(List.of());
+
+        // El 09/01 todavía es "hoy" para la clínica: no es una fecha pasada.
+        assertThat(turnoService.disponibilidad(1L, LocalDate.of(2030, 1, 9)).horariosLibres()).isEmpty();
+    }
+
+    @Test
+    void con_la_zona_del_servidor_en_UTC_ese_mismo_dia_se_rechazaria_como_pasado() {
+        // Es el bug que evita el Clock: el mismo instante visto desde UTC cambia la respuesta.
+        ahoraEs("2030-01-10T02:00:00Z", ZoneId.of("UTC"));
+
+        assertStatus(() -> turnoService.disponibilidad(1L, LocalDate.of(2030, 1, 9)), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void cancelar_mide_las_dos_horas_de_anticipacion_con_el_reloj_de_la_clinica() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        // Turno a las 16:00 de Buenos Aires.
+        Turno turno = turno(5L, paciente, medico(1L, usuario(1L, Rol.MEDICO)), consultorio(1L),
+                LocalDateTime.of(2030, 1, 10, 16, 0), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+
+        // 15:00 en Buenos Aires: falta 1 hora.
+        ahoraEs("2030-01-10T18:00:00Z", BUENOS_AIRES);
+
+        assertStatus(() -> turnoService.cancelar(5L, new CancelarTurnoRequest(1L)), HttpStatus.BAD_REQUEST);
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.germanggiorgis.clinica.dto.ConteoMedicoEstado;
 import com.germanggiorgis.clinica.dto.ConteoPorEstado;
 import com.germanggiorgis.clinica.model.EstadoTurno;
 import com.germanggiorgis.clinica.model.Turno;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -18,9 +19,13 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
             Long medicoId, LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoExcluido);
     List<Turno> findByPacienteIdAndEstadoNotAndInicioBetween(
             Long pacienteId, EstadoTurno estadoExcluido, LocalDateTime desde, LocalDateTime hasta);
+    @EntityGraph(attributePaths = {"medico.usuario", "paciente.usuario", "consultorio", "motivoCancelacion", "afiliacion.obraSocial"})
     List<Turno> findByPacienteIdOrderByInicioDesc(Long pacienteId);
+    @EntityGraph(attributePaths = {"medico.usuario", "paciente.usuario", "consultorio", "motivoCancelacion", "afiliacion.obraSocial"})
     List<Turno> findByMedicoIdAndInicioBetweenOrderByInicioAsc(Long medicoId, LocalDateTime desde, LocalDateTime hasta);
+    @EntityGraph(attributePaths = {"medico.usuario", "paciente.usuario", "consultorio", "motivoCancelacion", "afiliacion.obraSocial"})
     List<Turno> findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(Long medicoId, LocalDateTime desde);
+    @EntityGraph(attributePaths = {"medico.usuario", "consultorio"})
     List<Turno> findByPacienteIdAndEstadoOrderByInicioDesc(Long pacienteId, EstadoTurno estado);
     /**
      * ¿Tiene este médico un turno vigente o ya atendido con este paciente que NO haya creado él mismo?

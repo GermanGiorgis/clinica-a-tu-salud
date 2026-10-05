@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -45,6 +46,7 @@ public class HorarioAtencionService {
     private final MedicoRepository medicoRepository;
     private final ConsultorioRepository consultorioRepository;
     private final TurnoRepository turnoRepository;
+    private final Clock clock;
 
     public List<HorarioAtencionResponse> listar(Long medicoId) {
         List<HorarioAtencion> horarios = medicoId != null
@@ -123,7 +125,7 @@ public class HorarioAtencionService {
         return turnoRepository.findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(
                         horario.getMedico().getId(),
                         List.of(EstadoTurno.RESERVADO, EstadoTurno.CONFIRMADO),
-                        LocalDateTime.now()).stream()
+                        LocalDateTime.now(clock)).stream()
                 .filter(turno -> cubre(horario, turno))
                 .toList();
     }
