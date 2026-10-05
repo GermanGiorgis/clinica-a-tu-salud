@@ -2,6 +2,7 @@ package com.germanggiorgis.clinica.controller;
 
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.ConcurrencyFailureException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -44,6 +45,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<Map<String, String>> handleResponseStatus(ResponseStatusException ex) {
         return ResponseEntity.status(ex.getStatusCode())
+                .headers(ex.getHeaders())   // p. ej. Retry-After en un 429
                 .body(Map.of("error", ex.getReason() != null ? ex.getReason() : "Error"));
     }
 
@@ -92,6 +94,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(Map.of("error", "Alguien modificó este registro al mismo tiempo. Recargá y volvé a intentar"));
+    }
+
+    /**
+     * Otros choques entre operaciones simultáneas: sobre todo, un deadlock que Postgres detecta entre
+     * dos reservas que se pisan (una de las dos transacciones se cancela, y es seguro reintentar).
+     */
+    @ExceptionHandler(ConcurrencyFailureException.class)
+    public ResponseEntity<Map<String, String>> handleConcurrencia(ConcurrencyFailureException ex) {
+        log.warn("Conflicto de concurrencia: {}", ex.getMostSpecificCause().getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(Map.of("error", "Otra operación simultánea chocó con esta. Probá de nuevo"));
     }
 
     /**

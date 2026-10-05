@@ -13,6 +13,7 @@ import com.germanggiorgis.clinica.repository.PacienteRepository;
 import com.germanggiorgis.clinica.repository.UsuarioRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -26,6 +27,8 @@ import java.util.Optional;
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -41,6 +44,8 @@ class UsuarioServiceTest {
     private EspecialidadRepository especialidadRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
+    @Mock
+    private UsuarioContextService usuarioContextService;
 
     @InjectMocks
     private UsuarioService usuarioService;
@@ -76,7 +81,7 @@ class UsuarioServiceTest {
             u.setId(1L);
             return u;
         });
-        when(pacienteRepository.findByDni("30111222")).thenReturn(Optional.empty());
+        when(pacienteRepository.existsByDniAndIdentidadVerificadaTrue("30111222")).thenReturn(false);
         when(pacienteRepository.save(any(Paciente.class))).thenAnswer(inv -> {
             Paciente p = inv.getArgument(0);
             p.setId(50L);
@@ -106,10 +111,73 @@ class UsuarioServiceTest {
         when(usuarioRepository.existsByEmailIgnoreCase("juan@clinica.test")).thenReturn(false);
         when(passwordEncoder.encode("clave123")).thenReturn("hash");
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(pacienteRepository.findByDni("30111222")).thenReturn(Optional.of(
-                Paciente.builder().id(1L).dni("30111222").fechaNacimiento(LocalDate.now()).build()));
+        when(pacienteRepository.existsByDniAndIdentidadVerificadaTrue("30111222")).thenReturn(true);
 
         assertStatus(() -> usuarioService.crear(request), HttpStatus.CONFLICT);
+    }
+
+    @Test
+    void crear_paciente_lo_deja_con_la_identidad_verificada_porque_lo_da_de_alta_el_personal() {
+        when(usuarioRepository.existsByEmailIgnoreCase("juan@clinica.test")).thenReturn(false);
+        when(passwordEncoder.encode("clave123")).thenReturn("hash");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(pacienteRepository.existsByDniAndIdentidadVerificadaTrue("30111222")).thenReturn(false);
+        when(pacienteRepository.save(any(Paciente.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        usuarioService.crear(paciente("juan@clinica.test", "30111222"));
+
+        ArgumentCaptor<Paciente> guardado = ArgumentCaptor.forClass(Paciente.class);
+        verify(pacienteRepository).save(guardado.capture());
+        assertThat(guardado.getValue().isIdentidadVerificada()).isTrue();
+    }
+
+    // --- activar / desactivar cuentas ---
+
+    private Usuario usuarioConId(long id, Rol rol) {
+        return Usuario.builder().id(id).email("u" + id + "@clinica.test").rol(rol).nombre("N").apellido("A").activo(true).build();
+    }
+
+    @Test
+    void cambiarActivo_desactiva_la_cuenta_de_otro_usuario() {
+        Usuario admin = usuarioConId(1L, Rol.ADMIN);
+        Usuario medico = usuarioConId(2L, Rol.MEDICO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(admin);
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(medico));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        UsuarioResponse respuesta = usuarioService.cambiarActivo(2L, false);
+
+        assertThat(respuesta.activo()).isFalse();
+        assertThat(medico.isActivo()).isFalse();
+    }
+
+    @Test
+    void cambiarActivo_reactiva_una_cuenta_desactivada() {
+        Usuario admin = usuarioConId(1L, Rol.ADMIN);
+        Usuario medico = usuarioConId(2L, Rol.MEDICO);
+        medico.setActivo(false);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(admin);
+        when(usuarioRepository.findById(2L)).thenReturn(Optional.of(medico));
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(usuarioService.cambiarActivo(2L, true).activo()).isTrue();
+    }
+
+    @Test
+    void cambiarActivo_no_deja_que_un_admin_desactive_su_propia_cuenta() {
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioConId(1L, Rol.ADMIN));
+
+        assertStatus(() -> usuarioService.cambiarActivo(1L, false), HttpStatus.BAD_REQUEST);
+
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    void cambiarActivo_de_un_usuario_inexistente_es_404() {
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioConId(1L, Rol.ADMIN));
+        when(usuarioRepository.findById(99L)).thenReturn(Optional.empty());
+
+        assertStatus(() -> usuarioService.cambiarActivo(99L, false), HttpStatus.NOT_FOUND);
     }
 
     @Test

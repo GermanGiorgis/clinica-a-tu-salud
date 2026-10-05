@@ -4,6 +4,7 @@ import com.germanggiorgis.clinica.model.Rol;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import com.germanggiorgis.clinica.validation.ClaveValida;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -19,16 +20,16 @@ public record CrearUsuarioRequest(
         @NotNull Rol rol,
         @NotBlank @Size(max = 100) String nombre,
         @NotBlank @Size(max = 100) String apellido,
-        @NotBlank @Email String email,
-        @NotBlank @Size(min = 6, message = "La contraseña debe tener al menos 6 caracteres") String password,
+        @NotBlank @Email @Size(max = 255) String email,
+        @NotBlank @ClaveValida String password,
         @Size(max = 30) String telefono,
 
         // Solo PACIENTE
-        String dni,
+        @Size(max = 20) String dni,
         LocalDate fechaNacimiento,
 
         // Solo MEDICO
-        String matricula,
+        @Size(max = 30) String matricula,
         List<Long> especialidadIds
 ) {
 }

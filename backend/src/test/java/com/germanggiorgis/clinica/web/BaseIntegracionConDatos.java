@@ -6,6 +6,7 @@ import com.germanggiorgis.clinica.model.Medico;
 import com.germanggiorgis.clinica.model.Paciente;
 import com.germanggiorgis.clinica.model.Rol;
 import com.germanggiorgis.clinica.model.Usuario;
+import com.germanggiorgis.clinica.repository.ConsultaRepository;
 import com.germanggiorgis.clinica.repository.ConsultorioRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
@@ -22,6 +23,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -59,6 +61,7 @@ abstract class BaseIntegracionConDatos {
     @Autowired protected ConsultorioRepository consultorioRepository;
     @Autowired protected HorarioAtencionRepository horarioRepository;
     @Autowired protected TurnoRepository turnoRepository;
+    @Autowired protected ConsultaRepository consultaRepository;
     @Autowired protected MotivoCancelacionRepository motivoRepository;
     @Autowired protected PasswordEncoder passwordEncoder;
     @Autowired protected JwtService jwtService;
@@ -70,6 +73,7 @@ abstract class BaseIntegracionConDatos {
         String medicos = "(SELECT m.id FROM medico m JOIN usuario u ON u.id = m.usuario_id WHERE u.email LIKE '%" + DOMINIO + "')";
         String pacientes = "(SELECT p.id FROM paciente p JOIN usuario u ON u.id = p.usuario_id WHERE u.email LIKE '%" + DOMINIO + "')";
         String turnos = "(SELECT id FROM turno WHERE medico_id IN " + medicos + " OR paciente_id IN " + pacientes + ")";
+        jdbc.update("DELETE FROM acceso_historial WHERE usuario_id IN (SELECT id FROM usuario WHERE email LIKE '%" + DOMINIO + "') OR paciente_id IN " + pacientes);
         jdbc.update("DELETE FROM item_factura WHERE factura_id IN (SELECT id FROM factura WHERE turno_id IN " + turnos + ")");
         jdbc.update("DELETE FROM factura WHERE turno_id IN " + turnos);
         jdbc.update("DELETE FROM encuesta WHERE turno_id IN " + turnos);
@@ -96,9 +100,15 @@ abstract class BaseIntegracionConDatos {
                 .passwordHash(passwordEncoder.encode(password)).rol(rol).nombre("N" + s).apellido("A").build());
     }
 
+    /** Paciente con la identidad ya verificada por la clinica (lo normal para los tests de reservas). */
     protected Paciente paciente() {
+        return paciente(true);
+    }
+
+    protected Paciente paciente(boolean identidadVerificada) {
         return pacienteRepository.saveAndFlush(Paciente.builder().usuario(usuario(Rol.PACIENTE))
-                .dni(String.valueOf(10_000_000 + (int) (Math.random() * 80_000_000))).fechaNacimiento(LocalDate.of(1990, 1, 1)).build());
+                .dni(String.valueOf(10_000_000 + (int) (Math.random() * 80_000_000))).fechaNacimiento(LocalDate.of(1990, 1, 1))
+                .identidadVerificada(identidadVerificada).build());
     }
 
     protected Medico medico() {
@@ -124,6 +134,14 @@ abstract class BaseIntegracionConDatos {
     protected MockHttpServletRequestBuilder reservar(Usuario quien, Medico medico, LocalDateTime inicio) {
         return post("/api/turnos").header("Authorization", token(quien)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"medicoId\":" + medico.getId() + ",\"inicio\":\"" + inicio + "\"}");
+    }
+
+    /** Hace que el pedido parezca venir de esa IP: el limite de intentos es por IP y todos los tests comparten la 127.0.0.1. */
+    protected static RequestPostProcessor desde(String ip) {
+        return request -> {
+            request.setRemoteAddr(ip);
+            return request;
+        };
     }
 
     protected static int[] ordenados(int[] estados) {

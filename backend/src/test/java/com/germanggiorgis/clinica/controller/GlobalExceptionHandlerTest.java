@@ -1,6 +1,7 @@
 package com.germanggiorgis.clinica.controller;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +41,15 @@ class GlobalExceptionHandlerTest {
 
         assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(r.getBody().get("error")).doesNotContain("fk_turno_consultorio", "foreign key");
+    }
+
+    @Test
+    void un_deadlock_entre_dos_operaciones_simultaneas_es_409_y_no_500() {
+        ResponseEntity<Map<String, String>> r = handler.handleConcurrencia(
+                new CannotAcquireLockException("could not execute statement", new RuntimeException("ERROR: deadlock detected")));
+
+        assertThat(r.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+        assertThat(r.getBody().get("error")).doesNotContain("deadlock", "SQL");
     }
 
     @Test

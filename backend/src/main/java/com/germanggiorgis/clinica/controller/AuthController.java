@@ -4,6 +4,7 @@ import com.germanggiorgis.clinica.dto.AuthResponse;
 import com.germanggiorgis.clinica.dto.LoginRequest;
 import com.germanggiorgis.clinica.dto.RegistroPacienteRequest;
 import com.germanggiorgis.clinica.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -21,12 +22,12 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/registro")
-    public ResponseEntity<AuthResponse> registro(@Valid @RequestBody RegistroPacienteRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrarPaciente(request));
+    public ResponseEntity<AuthResponse> registro(@Valid @RequestBody RegistroPacienteRequest request, HttpServletRequest http) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.registrarPaciente(request, http.getRemoteAddr()));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest http) {
+        return authService.login(request, http.getRemoteAddr());
     }
 }

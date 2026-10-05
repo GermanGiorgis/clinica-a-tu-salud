@@ -388,7 +388,7 @@ class TurnoServiceTest {
         HorarioAtencion horario = horario(medico, consultorio, fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
 
         when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedicoActor);
-        when(pacienteRepository.findByDni("30111222")).thenReturn(Optional.of(paciente));
+        when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("30111222")).thenReturn(Optional.of(paciente));
         when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
         when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
         when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), eq(EstadoTurno.CANCELADO), any(), any()))
@@ -414,7 +414,7 @@ class TurnoServiceTest {
     void crear_rechaza_dni_de_paciente_inexistente() {
         Usuario usuarioAdminActor = usuario(10L, Rol.ADMIN);
         when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioAdminActor);
-        when(pacienteRepository.findByDni("00000000")).thenReturn(Optional.empty());
+        when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("00000000")).thenReturn(Optional.empty());
 
         CrearTurnoRequest request = new CrearTurnoRequest(1L, LocalDateTime.now().plusDays(1), null, "00000000", null);
         assertStatus(() -> turnoService.crear(request), HttpStatus.NOT_FOUND);

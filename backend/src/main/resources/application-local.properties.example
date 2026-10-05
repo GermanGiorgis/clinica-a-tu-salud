@@ -5,3 +5,8 @@ spring.datasource.password=cambiar-esta-clave
 # Secreto para firmar los JWT. Generar uno random y largo, por ejemplo:
 #   node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"
 jwt.secret=cambiar-este-secreto-por-uno-random-y-largo
+
+# Solo desarrollo local: crea un admin de demostración (admin@clinica.test / admin1234) en el primer
+# arranque si todavía no hay ningún admin. NO activar fuera de tu máquina: en un entorno real se
+# define ADMIN_EMAIL y ADMIN_PASSWORD (ver AdminSeeder).
+clinica.seed.demo-admin=true

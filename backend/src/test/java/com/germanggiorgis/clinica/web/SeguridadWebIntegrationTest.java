@@ -235,7 +235,7 @@ class SeguridadWebIntegrationTest {
         String email = "nuevo-" + UUID.randomUUID().toString().substring(0, 8) + "@test.local";
         String dni = UUID.randomUUID().toString().substring(0, 12);
         mockMvc.perform(post("/api/auth/registro").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + email + "\",\"password\":\"clave1234\","
+                        .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + email + "\",\"password\":\"clave-segura-1234\","
                                 + "\"dni\":\"" + dni + "\",\"fechaNacimiento\":\"1990-05-20\"}"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.token").isNotEmpty())
@@ -246,7 +246,7 @@ class SeguridadWebIntegrationTest {
     void el_registro_con_un_email_repetido_da_409() throws Exception {
         Usuario existente = crearPaciente().getUsuario();
         mockMvc.perform(post("/api/auth/registro").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + existente.getEmail() + "\",\"password\":\"clave1234\","
+                        .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + existente.getEmail() + "\",\"password\":\"clave-segura-1234\","
                                 + "\"dni\":\"" + UUID.randomUUID().toString().substring(0, 12) + "\",\"fechaNacimiento\":\"1990-05-20\"}"))
                 .andExpect(status().isConflict());
     }

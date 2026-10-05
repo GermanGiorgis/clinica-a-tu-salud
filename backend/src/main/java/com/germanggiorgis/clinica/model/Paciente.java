@@ -43,4 +43,13 @@ public class Paciente {
     @NotNull
     @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
+
+    /**
+     * true cuando la clínica comprobó en persona que este DNI es de esta persona. Solo entonces el DNI
+     * es único (ver V8), se puede reservar a su nombre por DNI y un médico puede ver su historial.
+     * Un autorregistro nace sin verificar.
+     */
+    @Builder.Default
+    @Column(name = "identidad_verificada", nullable = false)
+    private boolean identidadVerificada = false;
 }

@@ -35,9 +35,26 @@ public class UsuarioService {
     private final MedicoRepository medicoRepository;
     private final EspecialidadRepository especialidadRepository;
     private final PasswordEncoder passwordEncoder;
+    private final UsuarioContextService usuarioContextService;
 
     public List<UsuarioResponse> listar() {
         return usuarioRepository.findAll().stream().map(UsuarioResponse::from).toList();
+    }
+
+    /**
+     * Activa o desactiva una cuenta. Es la forma de cortar el acceso de un usuario comprometido o de
+     * una cuenta sospechosa: el filtro JWT mira la base en cada request, así que el efecto es inmediato
+     * aunque el token todavía no haya vencido.
+     */
+    public UsuarioResponse cambiarActivo(Long id, boolean activo) {
+        Usuario actual = usuarioContextService.getUsuarioActual();
+        if (!activo && actual.getId().equals(id)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No podés desactivar tu propia cuenta");
+        }
+        Usuario usuario = usuarioRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
+        usuario.setActivo(activo);
+        return UsuarioResponse.from(usuarioRepository.save(usuario));
     }
 
     public UsuarioResponse crear(CrearUsuarioRequest request) {
@@ -70,13 +87,14 @@ public class UsuarioService {
         if (request.fechaNacimiento() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta la fecha de nacimiento del paciente");
         }
-        if (pacienteRepository.findByDni(request.dni()).isPresent()) {
+        if (pacienteRepository.existsByDniAndIdentidadVerificadaTrue(request.dni())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un paciente con ese DNI");
         }
         Paciente paciente = pacienteRepository.save(Paciente.builder()
                 .usuario(usuario)
                 .dni(request.dni())
                 .fechaNacimiento(request.fechaNacimiento())
+                .identidadVerificada(true)   // lo da de alta el personal de la clínica, con el documento a la vista
                 .build());
         return paciente.getId();
     }

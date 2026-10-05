@@ -10,6 +10,7 @@ import com.germanggiorgis.clinica.repository.PacienteRepository;
 import com.germanggiorgis.clinica.repository.UsuarioRepository;
 import com.germanggiorgis.clinica.security.CustomUserDetailsService;
 import com.germanggiorgis.clinica.security.JwtService;
+import com.germanggiorgis.clinica.security.LoginAttemptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -32,14 +33,18 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final CustomUserDetailsService userDetailsService;
+    private final LoginAttemptService loginAttemptService;
 
-    /** Autorregistro público: siempre crea una cuenta PACIENTE. */
-    public AuthResponse registrarPaciente(RegistroPacienteRequest request) {
+    /**
+     * Autorregistro público: siempre crea una cuenta PACIENTE con la identidad SIN verificar.
+     * No se comprueba el DNI contra otros pacientes: cualquiera puede escribir cualquier DNI, y avisar
+     * "ese DNI ya existe" le diría a un desconocido quién se atiende en la clínica. La clínica
+     * verifica la identidad en persona (ver PacienteService) y recién ahí el DNI pasa a ser único.
+     */
+    public AuthResponse registrarPaciente(RegistroPacienteRequest request, String ip) {
+        loginAttemptService.verificarRegistroPermitido(ip);
         if (usuarioRepository.existsByEmailIgnoreCase(request.email())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe una cuenta con ese email");
-        }
-        if (pacienteRepository.findByDni(request.dni()).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya existe un paciente con ese DNI");
         }
 
         Usuario usuario = usuarioRepository.save(Usuario.builder()
@@ -55,21 +60,26 @@ public class AuthService {
                 .usuario(usuario)
                 .dni(request.dni())
                 .fechaNacimiento(request.fechaNacimiento())
+                .identidadVerificada(false)
                 .build());
 
         return tokenPara(usuario);
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String ip) {
+        // Antes de mirar la contraseña: una cuenta bloqueada no puede seguir probando claves.
+        loginAttemptService.verificarLoginPermitido(request.email(), ip);
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password()));
         } catch (AuthenticationException ex) {
+            loginAttemptService.registrarFallo(request.email(), ip);
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos");
         }
 
         Usuario usuario = usuarioRepository.findByEmailIgnoreCase(request.email())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos"));
+        loginAttemptService.registrarExito(request.email());
         return tokenPara(usuario);
     }
 

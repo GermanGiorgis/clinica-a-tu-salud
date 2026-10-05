@@ -280,8 +280,10 @@ public class TurnoService {
         if (pacienteDni == null || pacienteDni.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Falta el DNI del paciente");
         }
-        return pacienteRepository.findByDni(pacienteDni)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No hay ningún paciente con ese DNI"));
+        // Solo pacientes con la identidad verificada: un DNI sin verificar lo pudo escribir cualquiera.
+        return pacienteRepository.findByDniAndIdentidadVerificadaTrue(pacienteDni)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "No hay ningún paciente con la identidad verificada con ese DNI"));
     }
 
     /** Si se indica, tiene que ser una afiliación del mismo paciente que reserva. */

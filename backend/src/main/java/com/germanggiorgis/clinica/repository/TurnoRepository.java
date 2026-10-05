@@ -22,7 +22,12 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
     List<Turno> findByMedicoIdAndInicioBetweenOrderByInicioAsc(Long medicoId, LocalDateTime desde, LocalDateTime hasta);
     List<Turno> findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(Long medicoId, LocalDateTime desde);
     List<Turno> findByPacienteIdAndEstadoOrderByInicioDesc(Long pacienteId, EstadoTurno estado);
-    boolean existsByMedicoIdAndPacienteId(Long medicoId, Long pacienteId);
+    /**
+     * ¿Tiene este médico un turno vigente o ya atendido con este paciente que NO haya creado él mismo?
+     * Es lo que lo habilita a ver el historial clínico completo (ver HistorialService).
+     */
+    boolean existsByMedicoIdAndPacienteIdAndEstadoInAndCreadoPorIdNot(
+            Long medicoId, Long pacienteId, Collection<EstadoTurno> estados, Long creadoPorId);
     List<Turno> findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(
             Long medicoId, Collection<EstadoTurno> estados, LocalDateTime desde);
 
