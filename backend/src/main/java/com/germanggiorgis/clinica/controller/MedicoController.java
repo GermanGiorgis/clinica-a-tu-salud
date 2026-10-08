@@ -24,8 +24,11 @@ public class MedicoController {
     private final TurnoService turnoService;
 
     @GetMapping
-    public List<MedicoResponse> listar(@RequestParam(required = false) Long especialidadId) {
-        return medicoService.listar(especialidadId);
+    public List<MedicoResponse> listar(
+            @RequestParam(required = false) Long especialidadId,
+            @RequestParam(defaultValue = "false") boolean incluirInactivos
+    ) {
+        return medicoService.listar(especialidadId, incluirInactivos);
     }
 
     @GetMapping("/{id}")

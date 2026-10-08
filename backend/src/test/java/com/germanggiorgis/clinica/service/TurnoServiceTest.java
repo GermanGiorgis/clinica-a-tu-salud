@@ -3,6 +3,7 @@ package com.germanggiorgis.clinica.service;
 import com.germanggiorgis.clinica.dto.CancelarTurnoRequest;
 import com.germanggiorgis.clinica.dto.CrearTurnoRequest;
 import com.germanggiorgis.clinica.dto.DisponibilidadResponse;
+import com.germanggiorgis.clinica.dto.ReprogramarTurnoRequest;
 import com.germanggiorgis.clinica.dto.TurnoResponse;
 import com.germanggiorgis.clinica.model.Afiliacion;
 import com.germanggiorgis.clinica.model.Consultorio;
@@ -1020,6 +1021,8 @@ class TurnoServiceTest {
         when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
         when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("DNI1")).thenReturn(Optional.of(paciente));
         when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek()))
+                .thenReturn(List.of(horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30)));
         when(turnoRepository.countByPacienteIdAndEstadoInAndFinAfter(eq(1L), any(), any())).thenReturn(2L);
 
         assertThatThrownBy(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, "DNI1", null)))
@@ -1085,5 +1088,271 @@ class TurnoServiceTest {
         assertStatus(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null)),
                 HttpStatus.BAD_REQUEST);
         verify(turnoRepository, never()).saveAndFlush(any());
+    }
+
+    // --- reprogramar ---
+
+    /** Un turno del paciente 1 con el médico 1, en {@code inicio}; la agenda del médico tiene horario ese día. */
+    private Turno turnoParaReprogramar(Usuario usuarioPaciente, Medico medico, LocalDateTime inicio, EstadoTurno estado) {
+        Turno turno = turno(5L, paciente(1L, usuarioPaciente), medico, consultorio(1L), inicio, estado);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+        return turno;
+    }
+
+    private void agendaDelDia(Medico medico, LocalDate fecha, long consultorioId) {
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(medico.getId(), fecha.getDayOfWeek()))
+                .thenReturn(List.of(horario(medico, consultorio(consultorioId), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30)));
+    }
+
+    @Test
+    void reprogramar_mueve_el_turno_del_dueno_lo_deja_reservado_y_toma_el_consultorio_del_horario_nuevo() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        Turno turno = turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.CONFIRMADO);
+        agendaDelDia(medico, fecha, 5L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), eq(EstadoTurno.CANCELADO))).thenReturn(List.of(turno));
+        when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), eq(EstadoTurno.CANCELADO), any(), any())).thenReturn(List.of(turno));
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TurnoResponse respuesta = turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0))));
+
+        assertThat(respuesta.inicio()).isEqualTo(LocalDateTime.of(fecha, LocalTime.of(10, 0)));
+        assertThat(respuesta.fin()).isEqualTo(LocalDateTime.of(fecha, LocalTime.of(10, 30)));
+        assertThat(respuesta.estado()).isEqualTo(EstadoTurno.RESERVADO);
+        assertThat(respuesta.consultorioId()).isEqualTo(5L);
+        verify(pacienteRepository).bloquearPorId(1L);
+    }
+
+    @Test
+    void reprogramar_deja_pasar_a_un_horario_pegado_al_que_ya_tenia_porque_no_se_choca_consigo_mismo() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        // el turno ocupa 09:00-09:30 y se lo corre a 09:30: no se pisa ni consigo mismo
+        Turno turno = turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        agendaDelDia(medico, fecha, 1L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), any())).thenReturn(List.of(turno));
+        when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), any(), any(), any())).thenReturn(List.of(turno));
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(9, 30)))).inicio())
+                .isEqualTo(LocalDateTime.of(fecha, LocalTime.of(9, 30)));
+    }
+
+    @Test
+    void reprogramar_rechaza_a_un_paciente_que_no_es_dueno_del_turno() {
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        turnoParaReprogramar(usuario(2L, Rol.PACIENTE), medico, LocalDateTime.now().plusDays(3), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuario(8L, Rol.PACIENTE));
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.now().plusDays(4))), HttpStatus.FORBIDDEN);
+        verify(turnoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void reprogramar_rechaza_a_otro_medico() {
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        turnoParaReprogramar(usuario(2L, Rol.PACIENTE), medico, LocalDateTime.now().plusDays(3), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuario(4L, Rol.MEDICO));
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.now().plusDays(4))), HttpStatus.FORBIDDEN);
+    }
+
+    @Test
+    void reprogramar_rechaza_un_turno_que_ya_no_esta_pendiente_aunque_el_horario_nuevo_sea_perfecto() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        for (EstadoTurno estado : List.of(EstadoTurno.ATENDIDO, EstadoTurno.AUSENTE, EstadoTurno.CANCELADO)) {
+            turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), estado);
+            // Todo lo demás está bien (agenda, horario libre): lo único que lo puede rechazar es el estado.
+            lenient().when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek()))
+                    .thenReturn(List.of(horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30)));
+            lenient().when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+
+            assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))), HttpStatus.BAD_REQUEST);
+        }
+        verify(turnoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void reprogramar_no_se_choca_con_el_propio_turno_aunque_dure_mas_que_la_grilla_actual() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        // Se reservó cuando el horario era de 60 minutos (09:00-10:00); hoy la grilla es de 30 y se lo corre a 09:30,
+        // que se superpone con la segunda mitad del turno original: eso no es un choque con otro turno.
+        Turno turno = turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        turno.setFin(turno.getInicio().plusMinutes(60));
+        agendaDelDia(medico, fecha, 1L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), any())).thenReturn(List.of(turno));
+        when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), any(), any(), any())).thenReturn(List.of(turno));
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(9, 30)))).inicio())
+                .isEqualTo(LocalDateTime.of(fecha, LocalTime.of(9, 30)));
+    }
+
+    @Test
+    void reprogramar_un_paciente_necesita_la_misma_anticipacion_que_para_cancelar_pero_el_personal_no() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.now().plusMinutes(90), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))), HttpStatus.BAD_REQUEST);
+
+        // la recepción sí puede (el paciente llamó por teléfono diez minutos antes)
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuario(9L, Rol.RECEPCIONISTA));
+        agendaDelDia(medico, fecha, 1L);
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+        assertThat(turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))).estado())
+                .isEqualTo(EstadoTurno.RESERVADO);
+    }
+
+    @Test
+    void reprogramar_rechaza_el_mismo_horario() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        LocalDateTime inicio = LocalDate.now().plusDays(3).atTime(9, 0);
+        turnoParaReprogramar(usuarioPaciente, medico(1L, usuario(3L, Rol.MEDICO)), inicio, EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(inicio)), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void reprogramar_rechaza_un_horario_que_otro_turno_del_medico_ya_ocupa() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        Turno turno = turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        Turno ajeno = turno(6L, paciente(7L, usuario(7L, Rol.PACIENTE)), medico, consultorio(1L), LocalDateTime.of(fecha, LocalTime.of(10, 0)), EstadoTurno.RESERVADO);
+        agendaDelDia(medico, fecha, 1L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(eq(1L), any(), any(), any())).thenReturn(List.of(turno, ajeno));
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))), HttpStatus.CONFLICT);
+        assertThat(turno.getInicio()).isEqualTo(LocalDateTime.of(fecha, LocalTime.of(9, 0)));
+    }
+
+    @Test
+    void reprogramar_rechaza_si_el_paciente_ya_tiene_otro_turno_a_esa_hora_y_el_mensaje_depende_de_quien_lo_lee() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        Medico otroMedico = medico(2L, usuario(4L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        Turno turno = turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        Turno otro = turno(6L, turno.getPaciente(), otroMedico, consultorio(2L), LocalDateTime.of(fecha, LocalTime.of(10, 0)), EstadoTurno.RESERVADO);
+        agendaDelDia(medico, fecha, 1L);
+        when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), any(), any(), any())).thenReturn(List.of(turno, otro));
+        var pedido = new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)));
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        assertThatThrownBy(() -> turnoService.reprogramar(5L, pedido)).hasMessageContaining("Ya tenés un turno reservado en ese horario");
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuario(9L, Rol.RECEPCIONISTA));
+        assertThatThrownBy(() -> turnoService.reprogramar(5L, pedido)).hasMessageContaining("Ese paciente ya tiene un turno reservado en ese horario");
+    }
+
+    @Test
+    void reprogramar_rechaza_un_dia_cerrado_un_horario_fuera_de_agenda_y_el_pasado() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        agendaDelDia(medico, fecha, 1L);
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(15, 0)))), HttpStatus.BAD_REQUEST);
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(9, 10)))), HttpStatus.BAD_REQUEST);
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.now().minusDays(1))), HttpStatus.BAD_REQUEST);
+
+        when(diaNoLaborableRepository.cubrenFecha(1L, fecha)).thenReturn(List.of(cierre(null, "Feriado")));
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void reprogramar_traduce_la_carrera_contra_la_base_en_409_sin_dejar_el_turno_movido() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(3);
+        turnoParaReprogramar(usuarioPaciente, medico, LocalDateTime.of(fecha, LocalTime.of(9, 0)), EstadoTurno.RESERVADO);
+        agendaDelDia(medico, fecha, 1L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenThrow(new DataIntegrityViolationException("ex_turno_medico_sin_solapes"));
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDateTime.of(fecha, LocalTime.of(10, 0)))), HttpStatus.CONFLICT);
+    }
+
+    // --- medico desactivado ---
+
+    @Test
+    void crear_rechaza_reservar_con_un_medico_desactivado() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Usuario usuarioMedico = usuario(3L, Rol.MEDICO);
+        usuarioMedico.setActivo(false);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente(1L, usuarioPaciente)));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico(1L, usuarioMedico)));
+
+        assertThatThrownBy(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("ya no atiende");
+        verify(turnoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void disponibilidad_de_un_medico_desactivado_no_ofrece_nada_y_lo_explica() {
+        Usuario usuarioMedico = usuario(3L, Rol.MEDICO);
+        usuarioMedico.setActivo(false);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico(1L, usuarioMedico)));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fecha);
+
+        assertThat(respuesta.horariosLibres()).isEmpty();
+        assertThat(respuesta.aviso()).contains("ya no atiende");
+        verify(horarioAtencionRepository, never()).findByMedicoIdAndDiaSemana(any(), any());
+    }
+
+    @Test
+    void reprogramar_tampoco_vale_con_un_medico_desactivado() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Usuario usuarioMedico = usuario(3L, Rol.MEDICO);
+        usuarioMedico.setActivo(false);
+        turnoParaReprogramar(usuarioPaciente, medico(1L, usuarioMedico), LocalDate.now().plusDays(3).atTime(9, 0), EstadoTurno.RESERVADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+
+        assertStatus(() -> turnoService.reprogramar(5L, new ReprogramarTurnoRequest(LocalDate.now().plusDays(4).atTime(9, 0))), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void crear_el_choque_del_paciente_con_su_propio_turno_habla_en_segunda_persona_solo_para_el_paciente() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        Medico otro = medico(2L, usuario(4L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        LocalDateTime inicio = LocalDateTime.of(fecha, LocalTime.of(9, 0));
+        Turno existente = turno(9L, paciente, otro, consultorio(2L), inicio, EstadoTurno.RESERVADO);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("30111222")).thenReturn(Optional.of(paciente));
+        agendaDelDia(medico, fecha, 1L);
+        when(turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(eq(1L), any(), any(), any())).thenReturn(List.of(existente));
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        assertThatThrownBy(() -> turnoService.crear(new CrearTurnoRequest(1L, inicio, null, null, null)))
+                .hasMessageContaining("Ya tenés un turno");
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuario(9L, Rol.RECEPCIONISTA));
+        assertThatThrownBy(() -> turnoService.crear(new CrearTurnoRequest(1L, inicio, null, "30111222", null)))
+                .hasMessageContaining("Ese paciente ya tiene un turno");
     }
 }

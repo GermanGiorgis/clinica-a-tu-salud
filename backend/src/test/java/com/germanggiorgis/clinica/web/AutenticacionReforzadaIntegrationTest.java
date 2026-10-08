@@ -45,7 +45,7 @@ class AutenticacionReforzadaIntegrationTest extends BaseIntegracionConDatos {
         String s = UUID.randomUUID().toString().substring(0, 8);
         return post("/api/auth/registro").with(desde(ip)).contentType(MediaType.APPLICATION_JSON)
                 .content("{\"nombre\":\"Nombre\",\"apellido\":\"Apellido\",\"email\":\"alta-" + s + DOMINIO + "\",\"password\":\"" + password
-                        + "\",\"dni\":\"" + (long) (Math.random() * 1e9) + "\",\"fechaNacimiento\":\"1990-01-01\"}");
+                        + "\",\"dni\":\"" + (100_000_000L + (long) (Math.random() * 8e8)) + "\",\"fechaNacimiento\":\"1990-01-01\"}");
     }
 
     // --- política de contraseñas ---

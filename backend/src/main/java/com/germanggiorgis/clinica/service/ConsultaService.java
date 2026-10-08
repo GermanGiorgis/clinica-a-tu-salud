@@ -26,12 +26,15 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Clock;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
  * Regla 7 de docs/modelo-datos.md: la Consulta solo existe para turnos
  * CONFIRMADO y es 1:1 con el turno; crearla es lo que pasa el turno a
- * ATENDIDO. Solo el médico del turno (o un admin) la carga.
+ * ATENDIDO. Solo el médico del turno (o un admin) la carga, y no antes del
+ * día del turno: no se puede atender a alguien que todavía no vino.
  */
 @Service
 @RequiredArgsConstructor
@@ -46,6 +49,7 @@ public class ConsultaService {
     private final ResultadoEstudioRepository resultadoEstudioRepository;
     private final TurnoRepository turnoRepository;
     private final UsuarioContextService usuarioContextService;
+    private final Clock clock;
 
     public ConsultaResponse crear(Long turnoId, CrearConsultaRequest request) {
         Usuario actual = usuarioContextService.getUsuarioActual();
@@ -54,6 +58,9 @@ public class ConsultaService {
 
         if (turno.getEstado() != EstadoTurno.CONFIRMADO) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se puede cargar una consulta para un turno confirmado");
+        }
+        if (turno.getInicio().toLocalDate().isAfter(LocalDate.now(clock))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Todavía no es el día de ese turno");
         }
         if (consultaRepository.findByTurnoId(turnoId).isPresent()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese turno ya tiene una consulta cargada");

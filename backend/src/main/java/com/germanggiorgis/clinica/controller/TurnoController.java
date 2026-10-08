@@ -2,6 +2,7 @@ package com.germanggiorgis.clinica.controller;
 
 import com.germanggiorgis.clinica.dto.CancelarTurnoRequest;
 import com.germanggiorgis.clinica.dto.CrearTurnoRequest;
+import com.germanggiorgis.clinica.dto.ReprogramarTurnoRequest;
 import com.germanggiorgis.clinica.dto.TurnoResponse;
 import com.germanggiorgis.clinica.service.TurnoService;
 import jakarta.validation.Valid;
@@ -43,6 +44,11 @@ public class TurnoController {
     @PatchMapping("/{id}/cancelar")
     public TurnoResponse cancelar(@PathVariable Long id, @Valid @RequestBody CancelarTurnoRequest request) {
         return turnoService.cancelar(id, request);
+    }
+
+    @PatchMapping("/{id}/reprogramar")
+    public TurnoResponse reprogramar(@PathVariable Long id, @Valid @RequestBody ReprogramarTurnoRequest request) {
+        return turnoService.reprogramar(id, request);
     }
 
     @PatchMapping("/{id}/confirmar")

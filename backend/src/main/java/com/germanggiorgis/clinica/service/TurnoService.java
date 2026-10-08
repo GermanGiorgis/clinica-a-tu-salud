@@ -3,6 +3,7 @@ package com.germanggiorgis.clinica.service;
 import com.germanggiorgis.clinica.dto.CancelarTurnoRequest;
 import com.germanggiorgis.clinica.dto.CrearTurnoRequest;
 import com.germanggiorgis.clinica.dto.DisponibilidadResponse;
+import com.germanggiorgis.clinica.dto.ReprogramarTurnoRequest;
 import com.germanggiorgis.clinica.dto.TurnoResponse;
 import com.germanggiorgis.clinica.model.Afiliacion;
 import com.germanggiorgis.clinica.model.EstadoTurno;
@@ -58,6 +59,7 @@ public class TurnoService {
     /** Turnos pendientes que un paciente puede tener a la vez (regla 20). */
     static final int MAXIMO_TURNOS_PENDIENTES = 2;
     private static final List<EstadoTurno> PENDIENTES = List.of(EstadoTurno.RESERVADO, EstadoTurno.CONFIRMADO);
+    private static final String AVISO_MEDICO_INACTIVO = "Este médico ya no atiende en la clínica";
 
     private final TurnoRepository turnoRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
@@ -74,8 +76,11 @@ public class TurnoService {
         if (fecha.isBefore(LocalDate.now(clock))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha no puede ser pasada");
         }
-        medicoRepository.findById(medicoId)
+        Medico medicoConsultado = medicoRepository.findById(medicoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Médico no encontrado"));
+        if (!medicoConsultado.getUsuario().isActivo()) {
+            return new DisponibilidadResponse(fecha, List.of(), AVISO_MEDICO_INACTIVO);
+        }
 
         // Más allá de la ventana de reserva no se puede reservar: no se ofrecen horarios que después
         // el POST /api/turnos rechazaría con "tanta anticipación".
@@ -128,42 +133,11 @@ public class TurnoService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Médico no encontrado"));
 
         LocalDateTime inicio = request.inicio();
-        LocalDate fecha = inicio.toLocalDate();
-        if (inicio.isBefore(LocalDateTime.now(clock))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar en el pasado");
-        }
-        if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar con tanta anticipación");
-        }
-
-        if (avisoDeCierre(medico.getId(), fecha).isPresent()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El médico no atiende ese día");
-        }
-
+        HorarioAtencion horario = resolverHorarioDeReserva(medico, inicio);
         controlarTopeDeTurnosPendientes(usuarioActual, paciente);
 
-        HorarioAtencion horario = horariosVigentes(medico.getId(), fecha).stream()
-                .filter(h -> encajaEnHorario(inicio.toLocalTime(), h))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "El horario elegido no corresponde a la agenda del médico"));
-
         LocalDateTime fin = inicio.plusMinutes(horario.getDuracionTurnoMin());
-
-        List<Turno> activosDelMedico = turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(
-                medico.getId(), fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO);
-        if (seSolapaConAlguno(activosDelMedico, inicio, fin)) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese horario ya no está disponible, elegí otro");
-        }
-
-        boolean pacienteOcupado = turnoRepository
-                .findByPacienteIdAndEstadoNotAndInicioBetween(
-                        paciente.getId(), EstadoTurno.CANCELADO, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay())
-                .stream()
-                .anyMatch(t -> inicio.isBefore(t.getFin()) && t.getInicio().isBefore(fin));
-        if (pacienteOcupado) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya tenés un turno reservado en ese horario");
-        }
+        controlarSuperposiciones(usuarioActual, medico, paciente, inicio, fin, null);
 
         Afiliacion afiliacion = resolverAfiliacion(request.afiliacionId(), paciente);
 
@@ -184,7 +158,57 @@ public class TurnoService {
             // Perdió la carrera contra una restricción de la base (V7): otro pedido simultáneo
             // ocupó ese horario del médico, o el mismo paciente reservó otro turno a esa hora.
             throw new ResponseStatusException(HttpStatus.CONFLICT, esChoqueDelPaciente(ex)
-                    ? "Ya tenés un turno reservado en ese horario"
+                    ? mensajeChoqueDelPaciente(usuarioActual)
+                    : "Ese horario ya fue reservado, elegí otro");
+        }
+    }
+
+    /**
+     * Cambia un turno a otro horario del MISMO médico, sin pasar por cancelar y reservar (que perdería el
+     * lugar si otro se lo lleva en el medio y, para el paciente, contaría contra el tope de turnos).
+     * Pueden hacerlo quienes pueden cancelarlo; el paciente con la misma anticipación mínima que para
+     * cancelar. El turno vuelve a RESERVADO: hay que confirmarlo de nuevo para el horario nuevo.
+     */
+    public TurnoResponse reprogramar(Long turnoId, ReprogramarTurnoRequest request) {
+        Usuario usuarioActual = usuarioContextService.getUsuarioActual();
+        Turno turno = obtener(turnoId);
+
+        if (!puedeGestionar(usuarioActual, turno)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No podés reprogramar el turno de otra persona");
+        }
+        if (turno.getEstado() != EstadoTurno.RESERVADO && turno.getEstado() != EstadoTurno.CONFIRMADO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ese turno ya no se puede reprogramar");
+        }
+        if (usuarioActual.getRol() == Rol.PACIENTE) {
+            long horasHastaElTurno = Duration.between(LocalDateTime.now(clock), turno.getInicio()).toHours();
+            if (horasHastaElTurno < ANTICIPACION_MINIMA_CANCELACION_HORAS) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Para reprogramar necesitás al menos " + ANTICIPACION_MINIMA_CANCELACION_HORAS + " horas de anticipación");
+            }
+        }
+
+        LocalDateTime inicio = request.inicio();
+        if (inicio.equals(turno.getInicio())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Elegiste el mismo horario que ya tiene el turno");
+        }
+
+        // Mismo candado que al reservar: dos cambios simultáneos del mismo paciente no se pisan.
+        Paciente paciente = turno.getPaciente();
+        pacienteRepository.bloquearPorId(paciente.getId());
+        Medico medico = turno.getMedico();
+        HorarioAtencion horario = resolverHorarioDeReserva(medico, inicio);
+        LocalDateTime fin = inicio.plusMinutes(horario.getDuracionTurnoMin());
+        controlarSuperposiciones(usuarioActual, medico, paciente, inicio, fin, turno.getId());
+
+        turno.setInicio(inicio);
+        turno.setFin(fin);
+        turno.setConsultorio(horario.getConsultorio());
+        turno.setEstado(EstadoTurno.RESERVADO);
+        try {
+            return TurnoResponse.from(turnoRepository.saveAndFlush(turno));
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, esChoqueDelPaciente(ex)
+                    ? mensajeChoqueDelPaciente(usuarioActual)
                     : "Ese horario ya fue reservado, elegí otro");
         }
     }
@@ -330,6 +354,58 @@ public class TurnoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esa afiliación no es del paciente");
         }
         return afiliacion;
+    }
+
+    /**
+     * Valida que {@code inicio} sea un horario reservable de ese médico (futuro, dentro de la ventana, en un
+     * día abierto, alineado con su grilla) y devuelve el horario de atención que lo contiene.
+     */
+    private HorarioAtencion resolverHorarioDeReserva(Medico medico, LocalDateTime inicio) {
+        LocalDate fecha = inicio.toLocalDate();
+        if (!medico.getUsuario().isActivo()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, AVISO_MEDICO_INACTIVO);
+        }
+        if (inicio.isBefore(LocalDateTime.now(clock))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar en el pasado");
+        }
+        if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar con tanta anticipación");
+        }
+        if (avisoDeCierre(medico.getId(), fecha).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El médico no atiende ese día");
+        }
+        return horariosVigentes(medico.getId(), fecha).stream()
+                .filter(h -> encajaEnHorario(inicio.toLocalTime(), h))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "El horario elegido no corresponde a la agenda del médico"));
+    }
+
+    /** Ni el médico ni el paciente pueden tener otro turno activo que se pise (salvo el que se está moviendo). */
+    private void controlarSuperposiciones(Usuario usuarioActual, Medico medico, Paciente paciente,
+                                          LocalDateTime inicio, LocalDateTime fin, Long turnoAExcluir) {
+        LocalDate fecha = inicio.toLocalDate();
+        List<Turno> activosDelMedico = turnoRepository.findByMedicoIdAndInicioBetweenAndEstadoNot(
+                medico.getId(), fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay(), EstadoTurno.CANCELADO);
+        if (seSolapaConAlguno(sinElTurno(activosDelMedico, turnoAExcluir), inicio, fin)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ese horario ya no está disponible, elegí otro");
+        }
+        List<Turno> activosDelPaciente = turnoRepository.findByPacienteIdAndEstadoNotAndInicioBetween(
+                paciente.getId(), EstadoTurno.CANCELADO, fecha.atStartOfDay(), fecha.plusDays(1).atStartOfDay());
+        if (seSolapaConAlguno(sinElTurno(activosDelPaciente, turnoAExcluir), inicio, fin)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, mensajeChoqueDelPaciente(usuarioActual));
+        }
+    }
+
+    private List<Turno> sinElTurno(List<Turno> turnos, Long turnoAExcluir) {
+        return turnoAExcluir == null ? turnos : turnos.stream().filter(t -> !t.getId().equals(turnoAExcluir)).toList();
+    }
+
+    /** "Ya tenés..." solo tiene sentido si quien lo lee es el propio paciente. */
+    private String mensajeChoqueDelPaciente(Usuario usuarioActual) {
+        return usuarioActual.getRol() == Rol.PACIENTE
+                ? "Ya tenés un turno reservado en ese horario"
+                : "Ese paciente ya tiene un turno reservado en ese horario";
     }
 
     /**

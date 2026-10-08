@@ -39,8 +39,8 @@ class AltasYFacturasConcurrenciaIntegrationTest extends BaseIntegracionConDatos 
             String email = "doble-" + UUID.randomUUID().toString().substring(0, 8) + DOMINIO;
             // Cada pedido desde su IP, para no tropezar con el límite de altas por IP.
             int[] resultado = enParalelo(
-                    alta(email, "30" + ronda + "1", "10.70." + ronda + ".1"),
-                    alta(email.toUpperCase().replace(DOMINIO.toUpperCase(), DOMINIO), "30" + ronda + "2", "10.70." + ronda + ".2"));
+                    alta(email, "3000" + ronda + "1", "10.70." + ronda + ".1"),
+                    alta(email.toUpperCase().replace(DOMINIO.toUpperCase(), DOMINIO), "3000" + ronda + "2", "10.70." + ronda + ".2"));
 
             assertThat(ordenados(resultado)).as("ronda %d", ronda).containsExactly(201, 409);
         }

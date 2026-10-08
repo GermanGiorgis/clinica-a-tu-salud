@@ -24,6 +24,7 @@ import java.util.Optional;
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -57,6 +58,42 @@ class AfiliacionServiceTest {
     private Afiliacion afiliacion(long id, Paciente paciente) {
         return Afiliacion.builder().id(id).paciente(paciente).obraSocial(obraSocial()).numeroAfiliado("123")
                 .vigenteDesde(LocalDate.of(2026, 1, 1)).build();
+    }
+
+    @Test
+    void crear_rechaza_una_afiliacion_que_el_paciente_ya_cargo() {
+        Paciente paciente = paciente(1L);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente());
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(obraSocialRepository.findById(1L)).thenReturn(Optional.of(obraSocial()));
+        when(afiliacionRepository.existsByPacienteIdAndObraSocialIdAndNumeroAfiliado(1L, 1L, "123")).thenReturn(true);
+
+        // los espacios de más al copiar y pegar el número no la hacen "otra" afiliación
+        var request = new CrearAfiliacionRequest(1L, "  123 ", null, LocalDate.of(2026, 1, 1), null);
+        assertStatus(() -> afiliacionService.crear(request), HttpStatus.CONFLICT);
+        verify(afiliacionRepository, never()).save(any());
+    }
+
+    @Test
+    void crear_rechaza_una_vigencia_que_termina_antes_de_empezar() {
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente());
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente(1L)));
+        when(obraSocialRepository.findById(1L)).thenReturn(Optional.of(obraSocial()));
+
+        var request = new CrearAfiliacionRequest(1L, "123", null, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 5, 31));
+        assertStatus(() -> afiliacionService.crear(request), HttpStatus.BAD_REQUEST);
+        verify(afiliacionRepository, never()).save(any());
+    }
+
+    @Test
+    void crear_acepta_una_vigencia_de_un_solo_dia() {
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente());
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente(1L)));
+        when(obraSocialRepository.findById(1L)).thenReturn(Optional.of(obraSocial()));
+        when(afiliacionRepository.save(any(Afiliacion.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        var request = new CrearAfiliacionRequest(1L, "123", null, LocalDate.of(2026, 6, 1), LocalDate.of(2026, 6, 1));
+        assertThat(afiliacionService.crear(request)).isNotNull();
     }
 
     @Test

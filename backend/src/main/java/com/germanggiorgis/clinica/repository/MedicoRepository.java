@@ -14,6 +14,12 @@ public interface MedicoRepository extends JpaRepository<Medico, Long> {
     @EntityGraph(attributePaths = "usuario")
     List<Medico> findByEspecialidades_Id(Long especialidadId);
 
+    @EntityGraph(attributePaths = "usuario")
+    List<Medico> findByEspecialidades_IdAndUsuarioActivoTrue(Long especialidadId);
+
+    @EntityGraph(attributePaths = "usuario")
+    List<Medico> findByUsuarioActivoTrue();
+
     @Override
     @EntityGraph(attributePaths = "usuario")
     List<Medico> findAll();

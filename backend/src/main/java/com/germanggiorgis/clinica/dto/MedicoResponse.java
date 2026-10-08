@@ -9,7 +9,9 @@ public record MedicoResponse(
         String nombre,
         String apellido,
         String matricula,
-        List<EspecialidadResponse> especialidades
+        List<EspecialidadResponse> especialidades,
+        /** Un médico desactivado deja de verse y de poder reservarse; solo el personal lo ve (con este flag en false). */
+        boolean activo
 ) {
     public static MedicoResponse from(Medico medico) {
         var usuario = medico.getUsuario();
@@ -18,7 +20,8 @@ public record MedicoResponse(
                 usuario.getNombre(),
                 usuario.getApellido(),
                 medico.getMatricula(),
-                medico.getEspecialidades().stream().map(EspecialidadResponse::from).toList()
+                medico.getEspecialidades().stream().map(EspecialidadResponse::from).toList(),
+                usuario.isActivo()
         );
     }
 }

@@ -22,9 +22,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,8 @@ import java.util.Optional;
 import static com.germanggiorgis.clinica.service.HttpStatusAssert.assertStatus;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +57,8 @@ class ConsultaServiceTest {
     private TurnoRepository turnoRepository;
     @Mock
     private UsuarioContextService usuarioContextService;
+    @Spy
+    private Clock clock = Clock.systemDefaultZone();
 
     @InjectMocks
     private ConsultaService consultaService;
@@ -90,6 +96,51 @@ class ConsultaServiceTest {
 
         assertThat(respuesta.id()).isEqualTo(1L);
         assertThat(turno.getEstado()).isEqualTo(EstadoTurno.ATENDIDO);
+    }
+
+    @Test
+    void crear_rechaza_atender_un_turno_que_es_otro_dia() {
+        Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
+        Turno turno = turno(5L, usuarioMedico, usuario(2L, Rol.PACIENTE), EstadoTurno.CONFIRMADO);
+        turno.setInicio(LocalDateTime.now().plusDays(1));
+        turno.setFin(turno.getInicio().plusMinutes(30));
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+
+        CrearConsultaRequest request = new CrearConsultaRequest("Notas", List.of(new DiagnosticoRequest("Gripe", null)));
+        assertStatus(() -> consultaService.crear(5L, request), HttpStatus.BAD_REQUEST);
+        assertThat(turno.getEstado()).isEqualTo(EstadoTurno.CONFIRMADO);
+        verify(consultaRepository, never()).save(any());
+    }
+
+    @Test
+    void crear_deja_atender_un_turno_de_hoy_aunque_todavia_no_sea_la_hora_y_uno_de_un_dia_pasado() {
+        Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
+        Turno deHoyMasTarde = turno(5L, usuarioMedico, usuario(2L, Rol.PACIENTE), EstadoTurno.CONFIRMADO);
+        deHoyMasTarde.setInicio(LocalDateTime.now().toLocalDate().atTime(23, 59));
+        Turno deAyer = turno(6L, usuarioMedico, usuario(2L, Rol.PACIENTE), EstadoTurno.CONFIRMADO);
+        deAyer.setInicio(LocalDateTime.now().minusDays(1));
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(deHoyMasTarde));
+        when(turnoRepository.findById(6L)).thenReturn(Optional.of(deAyer));
+        when(consultaRepository.findByTurnoId(any())).thenReturn(Optional.empty());
+        when(consultaRepository.save(any(Consulta.class))).thenAnswer(inv -> {
+            Consulta c = inv.getArgument(0);
+            c.setId(1L);
+            return c;
+        });
+        when(diagnosticoRepository.findByConsultaId(1L)).thenReturn(List.of());
+        when(recetaRepository.findByConsultaId(1L)).thenReturn(List.of());
+        when(ordenEstudioRepository.findByConsultaId(1L)).thenReturn(List.of());
+        CrearConsultaRequest request = new CrearConsultaRequest("Notas", List.of(new DiagnosticoRequest("Gripe", null)));
+
+        consultaService.crear(5L, request);
+        consultaService.crear(6L, request);
+
+        assertThat(deHoyMasTarde.getEstado()).isEqualTo(EstadoTurno.ATENDIDO);
+        assertThat(deAyer.getEstado()).isEqualTo(EstadoTurno.ATENDIDO);
     }
 
     @Test

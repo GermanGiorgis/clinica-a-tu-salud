@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface AfiliacionRepository extends JpaRepository<Afiliacion, Long> {
     List<Afiliacion> findByPacienteIdOrderByVigenteDesdeDesc(Long pacienteId);
+    boolean existsByPacienteIdAndObraSocialIdAndNumeroAfiliado(Long pacienteId, Long obraSocialId, String numeroAfiliado);
 }

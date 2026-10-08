@@ -233,7 +233,7 @@ class SeguridadWebIntegrationTest {
     @Test
     void el_registro_publico_crea_un_paciente_y_devuelve_token() throws Exception {
         String email = "nuevo-" + UUID.randomUUID().toString().substring(0, 8) + "@test.local";
-        String dni = UUID.randomUUID().toString().substring(0, 12);
+        String dni = String.valueOf(10_000_000 + (int) (Math.random() * 80_000_000));
         mockMvc.perform(post("/api/auth/registro").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + email + "\",\"password\":\"clave-segura-1234\","
                                 + "\"dni\":\"" + dni + "\",\"fechaNacimiento\":\"1990-05-20\"}"))
@@ -247,7 +247,7 @@ class SeguridadWebIntegrationTest {
         Usuario existente = crearPaciente().getUsuario();
         mockMvc.perform(post("/api/auth/registro").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"nombre\":\"Ana\",\"apellido\":\"Diaz\",\"email\":\"" + existente.getEmail() + "\",\"password\":\"clave-segura-1234\","
-                                + "\"dni\":\"" + UUID.randomUUID().toString().substring(0, 12) + "\",\"fechaNacimiento\":\"1990-05-20\"}"))
+                                + "\"dni\":\"" + String.valueOf(10_000_000 + (int) (Math.random() * 80_000_000)) + "\",\"fechaNacimiento\":\"1990-05-20\"}"))
                 .andExpect(status().isConflict());
     }
 

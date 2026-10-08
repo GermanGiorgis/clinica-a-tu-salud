@@ -41,10 +41,18 @@ public class AfiliacionService {
         ObraSocial obraSocial = obraSocialRepository.findById(request.obraSocialId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Obra social no encontrada"));
 
+        if (request.vigenteHasta() != null && request.vigenteHasta().isBefore(request.vigenteDesde())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La fecha de fin no puede ser anterior a la de inicio");
+        }
+        String numero = request.numeroAfiliado().strip();
+        if (afiliacionRepository.existsByPacienteIdAndObraSocialIdAndNumeroAfiliado(paciente.getId(), obraSocial.getId(), numero)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Ya cargaste esa afiliación");
+        }
+
         Afiliacion afiliacion = Afiliacion.builder()
                 .paciente(paciente)
                 .obraSocial(obraSocial)
-                .numeroAfiliado(request.numeroAfiliado())
+                .numeroAfiliado(numero)
                 .plan(request.plan())
                 .vigenteDesde(request.vigenteDesde())
                 .vigenteHasta(request.vigenteHasta())
