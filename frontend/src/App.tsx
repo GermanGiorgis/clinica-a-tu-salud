@@ -7,6 +7,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { RegistroPage } from "./pages/RegistroPage";
 import { MedicosPage } from "./pages/MedicosPage";
 import { MedicoDetallePage } from "./pages/MedicoDetallePage";
+import { EspecialidadMedicosPage } from "./pages/EspecialidadMedicosPage";
 import { MisTurnosPage } from "./pages/MisTurnosPage";
 import { AgendaMedicoPage } from "./pages/AgendaMedicoPage";
 import { ConsultaPage } from "./pages/ConsultaPage";
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/registro" element={<RegistroPage />} />
           <Route path="/medicos" element={<MedicosPage />} />
+          <Route path="/medicos/especialidad/:especialidadId" element={<EspecialidadMedicosPage />} />
           <Route path="/medicos/:id" element={<MedicoDetallePage />} />
           <Route
             path="/mis-turnos"

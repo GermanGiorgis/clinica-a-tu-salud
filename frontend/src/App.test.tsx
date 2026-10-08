@@ -8,6 +8,7 @@ import * as pacientesApi from "./api/pacientes";
 import * as metricasApi from "./api/metricas";
 import * as turnosApi from "./api/turnos";
 import * as medicosApi from "./api/medicos";
+import * as especialidadesApi from "./api/especialidades";
 import * as motivosApi from "./api/motivosCancelacion";
 import * as afiliacionesApi from "./api/afiliaciones";
 import * as patologiasApi from "./api/patologias";
@@ -21,6 +22,7 @@ vi.mock("./api/historial");
 vi.mock("./api/metricas");
 vi.mock("./api/turnos");
 vi.mock("./api/medicos");
+vi.mock("./api/especialidades");
 vi.mock("./api/motivosCancelacion");
 vi.mock("./api/afiliaciones");
 vi.mock("./api/patologias");
@@ -49,6 +51,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
     vi.mocked(turnosApi.agendaMedico).mockResolvedValue([]);
     vi.mocked(medicosApi.listarMedicos).mockResolvedValue([]);
+    vi.mocked(especialidadesApi.listarEspecialidades).mockResolvedValue([{ id: 2, nombre: "Dermatología", descripcion: null }]);
     vi.mocked(motivosApi.listarMotivosCancelacion).mockResolvedValue([]);
     vi.mocked(afiliacionesApi.misAfiliaciones).mockResolvedValue([]);
     vi.mocked(patologiasApi.listarPatologias).mockResolvedValue([]);
@@ -66,10 +69,16 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
     expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
   });
 
-  it("la lista de médicos es pública", async () => {
+  it("las especialidades son públicas, y al abrir una se ve su lista de médicos", async () => {
     abrir("/medicos");
 
-    expect(await screen.findByRole("heading", { name: "Médicos", level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Especialidades", level: 1 })).toBeInTheDocument();
+    expect(await screen.findByRole("link", { name: /Dermatología/ })).toBeInTheDocument();
+    cleanup();
+
+    abrir("/medicos/especialidad/2");
+    expect(await screen.findByRole("heading", { name: "Dermatología", level: 1 })).toBeInTheDocument();
+    expect(medicosApi.listarMedicos).toHaveBeenLastCalledWith(2);
   });
 
   describe("sin sesión, las pantallas privadas mandan a iniciar sesión", () => {

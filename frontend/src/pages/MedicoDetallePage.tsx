@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { CalendarBlank, CheckCircle, Stethoscope } from "@phosphor-icons/react";
 import { obtenerDisponibilidad, obtenerMedico } from "../api/medicos";
 import { crearTurno } from "../api/turnos";
@@ -28,6 +28,8 @@ export function MedicoDetallePage() {
   const medicoId = Number(id);
   const { usuario, estaAutenticado } = useAuth();
   const navigate = useNavigate();
+  // Si se llegó desde una especialidad, "volver" lleva a esa lista y no al inicio de todas.
+  const desdeEspecialidad = (useLocation().state as { desdeEspecialidad?: { id: number; nombre?: string } } | null)?.desdeEspecialidad;
 
   const [medico, setMedico] = useState<Medico | null>(null);
   const [fecha, setFecha] = useState(hoyISO());
@@ -113,7 +115,13 @@ export function MedicoDetallePage() {
 
   return (
     <main className="page">
-      <Link to="/medicos" className="volver">← Volver a médicos</Link>
+      {desdeEspecialidad ? (
+        <Link to={`/medicos/especialidad/${desdeEspecialidad.id}`} className="volver">
+          ← Volver a {desdeEspecialidad.nombre ?? "la especialidad"}
+        </Link>
+      ) : (
+        <Link to="/medicos" className="volver">← Volver a especialidades</Link>
+      )}
       <div className="medico-detalle__cabecera">
         <span className="medico-detalle__avatar"><Stethoscope size={28} weight="duotone" aria-hidden="true" /></span>
         <div>

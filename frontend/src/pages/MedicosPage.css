@@ -1,18 +1,96 @@
-.medicos-lista__filtro {
+.especialidades__intro {
+  color: var(--color-muted-foreground);
+  margin: 0 0 var(--space-md);
+}
+
+.especialidades__herramientas {
   display: flex;
-  flex-direction: row;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  max-width: 420px;
+  gap: var(--space-md) var(--space-lg);
   margin: var(--space-md) 0 var(--space-lg);
+}
+
+.especialidades__buscador {
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.especialidades {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0 0;
+  display: grid;
+  gap: var(--space-md);
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+}
+
+.especialidades > li {
+  display: flex;
+}
+
+.especialidades__card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 100%;
+  text-decoration: none;
+  color: inherit;
+  transition: box-shadow 200ms ease, transform 200ms ease, border-color 200ms ease;
+}
+
+.especialidades__card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.especialidades__card strong {
+  font-family: var(--font-heading);
+  font-size: 1.02rem;
+}
+
+.especialidades__icono {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  flex-shrink: 0;
+  margin-bottom: 0.3rem;
+  border-radius: var(--radius-md);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+}
+
+.especialidades__detalle {
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+}
+
+.especialidades__cuenta {
+  margin-top: auto;
+  padding-top: 0.4rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-accent-hover);
+}
+
+.especialidades__cuenta--vacia {
   font-weight: 500;
   color: var(--color-muted-foreground);
 }
 
-.medicos-lista__filtro select {
-  flex: 1;
-  min-width: 180px;
+.especialidad-cabecera {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin: var(--space-md) 0 var(--space-lg);
+}
+
+.especialidad-cabecera h1,
+.especialidad-cabecera p {
+  margin: 0;
 }
 
 .medicos-lista {

@@ -62,7 +62,7 @@ class EntidadesFase1IntegrationTest {
                 .build());
 
         Especialidad cardiologia = especialidadRepository.saveAndFlush(
-                Especialidad.builder().nombre("Cardiología").build());
+                Especialidad.builder().nombre("Especialidad de prueba").build());
 
         Medico medico = medicoRepository.saveAndFlush(Medico.builder()
                 .usuario(usuarioMedico)
@@ -113,7 +113,7 @@ class EntidadesFase1IntegrationTest {
         assertThat(recargado.getEstado()).isEqualTo(EstadoTurno.RESERVADO);
         assertThat(recargado.getMedico().getMatricula()).isEqualTo("MP-1234");
         assertThat(recargado.getMedico().getEspecialidades()).extracting(Especialidad::getNombre)
-                .containsExactly("Cardiología");
+                .containsExactly("Especialidad de prueba");
         assertThat(recargado.getPaciente().getDni()).isEqualTo("30111222");
         assertThat(recargado.getCreadoPor().getEmail()).isEqualTo("juan.gomez@clinica.test");
 

@@ -25,7 +25,7 @@ export function Header() {
         Clínica
       </Link>
       <nav className="header__nav">
-        <Link to="/medicos" className={activo("/medicos") ? "activo" : ""}>Médicos</Link>
+        <Link to="/medicos" className={activo("/medicos") ? "activo" : ""}>Especialidades</Link>
         {estaAutenticado && usuario?.rol === "PACIENTE" && (
           <Link to="/mis-turnos" className={activo("/mis-turnos") ? "activo" : ""}>
             <Calendar size={18} aria-hidden="true" /> Mis turnos

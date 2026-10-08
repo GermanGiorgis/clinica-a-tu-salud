@@ -64,6 +64,21 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     expect(screen.getByRole("button", { name: "09:30" })).toBeInTheDocument();
   });
 
+  it("sin venir de una especialidad, volver lleva a todas las especialidades", async () => {
+    montar(null);
+
+    expect(await screen.findByRole("link", { name: /Volver a especialidades/ })).toHaveAttribute("href", "/medicos");
+  });
+
+  it("si se llegó desde una especialidad, volver lleva a la lista de esa especialidad", async () => {
+    renderConSesion(<MedicoDetallePage />, {
+      ruta: { pathname: "/medicos/7", state: { desdeEspecialidad: { id: 2, nombre: "Dermatología" } } },
+      path: "/medicos/:id",
+    });
+
+    expect(await screen.findByRole("link", { name: /Volver a Dermatología/ })).toHaveAttribute("href", "/medicos/especialidad/2");
+  });
+
   it("si el médico no existe muestra el error", async () => {
     vi.mocked(medicosApi.obtenerMedico).mockRejectedValue(new Error("404"));
     montar(null);

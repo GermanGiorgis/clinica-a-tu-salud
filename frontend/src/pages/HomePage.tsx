@@ -5,7 +5,7 @@ const ROLES = [
   {
     nombre: "Paciente",
     icono: User,
-    detalle: "Busca médicos por especialidad o por patología, reserva y cancela sus turnos, consulta su historial y recetas.",
+    detalle: "Elige una especialidad y ve sus médicos, reserva y cancela sus turnos, consulta su historial y recetas.",
   },
   {
     nombre: "Médico",
@@ -46,7 +46,7 @@ export function HomePage() {
           día de la clínica.
         </p>
         <div className="home-hero__acciones">
-          <Link to="/medicos" className="btn btn-primary">Buscar un médico</Link>
+          <Link to="/medicos" className="btn btn-primary">Buscar por especialidad</Link>
           <Link to="/registro" className="btn btn-secondary">Crear cuenta de paciente</Link>
         </div>
       </section>

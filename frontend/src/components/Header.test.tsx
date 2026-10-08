@@ -9,7 +9,7 @@ describe("Header", () => {
   it("sin sesión muestra iniciar sesión y registrarme, y ningún enlace privado", () => {
     renderConSesion(<Header />);
 
-    expect(screen.getByRole("link", { name: "Médicos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Especialidades" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Iniciar sesión" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Registrarme" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Mis turnos/ })).not.toBeInTheDocument();
@@ -60,7 +60,7 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: "Agenda" })).toHaveAttribute("href", "/agenda");
     expect(screen.getByRole("link", { name: /Verificar pacientes/ })).toHaveAttribute("href", "/pacientes/pendientes");
     expect(screen.getByRole("link", { name: /Feriados y ausencias/ })).toHaveAttribute("href", "/dias-no-laborables");
-    expect(screen.getByRole("link", { name: "Médicos" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Especialidades" })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Métricas/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Auditoría/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Mis turnos|Mi historial|Mi cobertura/ })).not.toBeInTheDocument();
