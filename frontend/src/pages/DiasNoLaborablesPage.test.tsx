@@ -52,7 +52,7 @@ describe("DiasNoLaborablesPage", () => {
     vi.mocked(diasApi.listarDiasNoLaborables).mockResolvedValue([]);
     vi.mocked(diasApi.turnosAfectados).mockResolvedValue([]);
     vi.mocked(medicosApi.listarMedicos).mockResolvedValue([
-      { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [] },
+      { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [], activo: true },
     ]);
     vi.mocked(motivosApi.listarMotivosCancelacion).mockResolvedValue([{ id: 10, nombre: "Médico no disponible", descripcion: null }]);
   });

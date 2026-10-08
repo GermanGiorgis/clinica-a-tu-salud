@@ -22,7 +22,7 @@ async function completar(password = "una-clave-segura-1") {
   await userEvent.type(screen.getByLabelText("Apellido"), "Paz");
   await userEvent.type(screen.getByLabelText("Email"), "ana@clinica.test");
   await userEvent.type(screen.getByLabelText(/^Contraseña/), password);
-  await userEvent.type(screen.getByLabelText("DNI"), "30111222");
+  await userEvent.type(screen.getByLabelText(/^DNI/), "30111222");
   await userEvent.type(screen.getByLabelText("Fecha de nacimiento"), "1990-05-20");
   await userEvent.click(screen.getByRole("button", { name: "Crear cuenta" }));
 }
@@ -39,6 +39,19 @@ describe("RegistroPage", () => {
     expect(campo).toHaveAttribute("minLength", "10");
     expect(campo).toHaveAttribute("maxLength", "72");
     expect(screen.getByText(/entre 10 y 72 caracteres/)).toBeInTheDocument();
+  });
+
+  it("el DNI acepta solo números: si lo pegan con puntos o letras queda limpio", async () => {
+    montar();
+    const dni = screen.getByLabelText(/^DNI/);
+
+    await userEvent.type(dni, "30.111.222");
+
+    expect(dni).toHaveValue("30111222");
+    expect(dni).toHaveAttribute("inputMode", "numeric");
+    await userEvent.clear(dni);
+    await userEvent.type(dni, "ab12cd");
+    expect(dni).toHaveValue("12");
   });
 
   it("avisa que la clínica tiene que verificar la identidad llevando el DNI", () => {
@@ -81,7 +94,7 @@ describe("RegistroPage", () => {
 
     await completar();
 
-    expect(await screen.findByText(/password: La contraseña debe tener al menos 10 caracteres/)).toBeInTheDocument();
+    expect(await screen.findByText(/Contraseña: La contraseña debe tener al menos 10 caracteres/)).toBeInTheDocument();
   });
 
   it("si el email ya existe lo dice y no deja a medias la sesión", async () => {

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, CalendarX, ChartBar, ClipboardText, ListMagnifyingGlass, ShieldCheck, SignOut, Stethoscope, UserCheck, UserCircle } from "@phosphor-icons/react";
+import { Calendar, CalendarX, ChartBar, ClipboardText, ListMagnifyingGlass, ShieldCheck, SignOut, Stethoscope, UserCheck, UserCircle, UsersThree } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
 import { esPersonalDeMostrador } from "../utils/roles";
 import "./Header.css";
@@ -49,6 +49,11 @@ export function Header() {
         {estaAutenticado && esPersonalDeMostrador(usuario?.rol) && (
           <Link to="/dias-no-laborables" className={activo("/dias-no-laborables") ? "activo" : ""}>
             <CalendarX size={18} aria-hidden="true" /> Feriados y ausencias
+          </Link>
+        )}
+        {estaAutenticado && usuario?.rol === "ADMIN" && (
+          <Link to="/usuarios" className={activo("/usuarios") ? "activo" : ""}>
+            <UsersThree size={18} aria-hidden="true" /> Usuarios
           </Link>
         )}
         {estaAutenticado && usuario?.rol === "ADMIN" && (

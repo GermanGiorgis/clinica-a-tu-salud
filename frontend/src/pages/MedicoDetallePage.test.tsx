@@ -19,7 +19,7 @@ const pedro: Medico = {
   nombre: "Pedro",
   apellido: "Prueba",
   matricula: "MP-7",
-  especialidades: [{ id: 2, nombre: "Dermatología", descripcion: null }],
+  especialidades: [{ id: 2, nombre: "Dermatología", descripcion: null }], activo: true,
 };
 
 const osde: Afiliacion = {
@@ -62,6 +62,16 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     expect(screen.getByText(/Dermatología/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "09:00" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "09:30" })).toBeInTheDocument();
+  });
+
+  it("el botón de reservar dice el día y la hora con palabras, no en formato técnico", async () => {
+    montar(usuario("PACIENTE"));
+
+    await elegirHorario();
+
+    const boton = screen.getByRole("button", { name: /^Reservar/ });
+    expect(boton).toHaveTextContent(/a las 09:30$/);
+    expect(boton).not.toHaveTextContent(/\d{4}-\d{2}-\d{2}/);
   });
 
   it("sin venir de una especialidad, volver lleva a todas las especialidades", async () => {
@@ -247,6 +257,16 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
       expect(screen.getByRole("button", { name: /^Reservar/ })).toBeDisabled();
       await userEvent.type(screen.getByLabelText(/DNI del paciente/), "99887766");
       expect(screen.getByRole("button", { name: /^Reservar/ })).toBeEnabled();
+    });
+
+    it("el DNI del paciente acepta solo números, aunque lo pasen con puntos", async () => {
+      montar(usuario("RECEPCIONISTA"));
+
+      await elegirHorario();
+      const dni = screen.getByLabelText(/DNI del paciente/);
+      await userEvent.type(dni, "30.111.222");
+
+      expect(dni).toHaveValue("30111222");
     });
 
     it("manda el DNI del paciente y no ofrece cobertura ni 'Ver mis turnos'", async () => {

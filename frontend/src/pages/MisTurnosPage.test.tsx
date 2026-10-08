@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as encuestasApi from "../api/encuestas";
+import * as medicosApi from "../api/medicos";
 import * as motivosApi from "../api/motivosCancelacion";
 import * as turnosApi from "../api/turnos";
 import { turno, usuario } from "../test/fixtures";
@@ -10,6 +11,7 @@ import { renderConSesion } from "../test/render";
 import { MisTurnosPage } from "./MisTurnosPage";
 
 vi.mock("../api/turnos");
+vi.mock("../api/medicos");
 vi.mock("../api/motivosCancelacion");
 vi.mock("../api/encuestas");
 
@@ -32,6 +34,80 @@ describe("MisTurnosPage", () => {
     vi.spyOn(window, "confirm").mockReturnValue(true);
     vi.mocked(motivosApi.listarMotivosCancelacion).mockResolvedValue(motivos);
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
+    vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: ["12:00:00", "12:30:00"], aviso: null });
+  });
+
+  it("muestra primero los turnos que vienen (el más próximo arriba) y después el historial, del más reciente al más viejo", async () => {
+    vi.mocked(turnosApi.misTurnos).mockResolvedValue([
+      turno({ id: 1, medicoNombre: "Medico Cancelado", inicio: "2030-01-20T09:00:00", estado: "CANCELADO", motivoCancelacionNombre: "x" }),
+      turno({ id: 2, medicoNombre: "Medico Lejano", inicio: "2030-03-01T09:00:00", estado: "RESERVADO" }),
+      turno({ id: 3, medicoNombre: "Medico Viejo", inicio: "2029-05-01T09:00:00", estado: "ATENDIDO" }),
+      turno({ id: 4, medicoNombre: "Medico Proximo", inicio: "2030-01-05T09:00:00", estado: "CONFIRMADO" }),
+      turno({ id: 5, medicoNombre: "Medico Reciente", inicio: "2029-12-01T09:00:00", estado: "AUSENTE" }),
+    ]);
+    vi.mocked(encuestasApi.obtenerEncuesta).mockResolvedValue(null as never);
+    montar();
+
+    await screen.findByText("Medico Proximo");
+    const orden = screen.getAllByRole("listitem").map((li) => li.querySelector("strong")?.textContent);
+
+    expect(orden).toEqual(["Medico Proximo", "Medico Lejano", "Medico Cancelado", "Medico Reciente", "Medico Viejo"]);
+  });
+
+  describe("reprogramar", () => {
+    it("se ofrece en un turno reservado o confirmado, y no en uno atendido, ausente o cancelado", async () => {
+      vi.mocked(encuestasApi.obtenerEncuesta).mockResolvedValue({ id: 1, puntaje: 5, comentario: null, creadaEn: "2026-10-01T10:00:00" });
+      vi.mocked(turnosApi.misTurnos).mockResolvedValue([
+        turno({ id: 1, estado: "RESERVADO" }), turno({ id: 2, estado: "CONFIRMADO" }),
+        turno({ id: 3, estado: "ATENDIDO" }), turno({ id: 4, estado: "AUSENTE" }), turno({ id: 5, estado: "CANCELADO" }),
+      ]);
+      montar();
+
+      await screen.findAllByRole("button", { name: /Reprogramar/ });
+
+      expect(screen.getAllByRole("button", { name: /Reprogramar/ })).toHaveLength(2);
+    });
+
+    it("abre los horarios libres del mismo médico y, al elegir uno, mueve el turno, avisa y recarga la lista", async () => {
+      vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 8, medicoId: 7, estado: "CONFIRMADO" })]);
+      vi.mocked(turnosApi.reprogramarTurno).mockResolvedValue(turno({ id: 8, inicio: "2030-01-10T12:30:00", estado: "RESERVADO" }));
+      montar();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Reprogramar/ }));
+      await userEvent.click(await screen.findByRole("button", { name: "12:30" }));
+      await userEvent.click(screen.getByRole("button", { name: /^Mover al/ }));
+
+      await waitFor(() => expect(turnosApi.reprogramarTurno).toHaveBeenCalledWith(8, "2030-01-10T12:30:00"));
+      expect(medicosApi.obtenerDisponibilidad).toHaveBeenCalledWith(7, "2030-01-10");
+      expect(await screen.findByText(/Listo: tu turno pasó al/)).toBeInTheDocument();
+      expect(screen.getByText(/confirmalo de nuevo/)).toBeInTheDocument();
+      expect(turnosApi.misTurnos).toHaveBeenCalledTimes(2);
+      expect(screen.queryByRole("region", { name: "Reprogramar turno" })).not.toBeInTheDocument();
+    });
+
+    it("se puede abrir y cerrar sin mover nada", async () => {
+      vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 8, estado: "RESERVADO" })]);
+      montar();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Reprogramar/ }));
+      expect(await screen.findByRole("region", { name: "Reprogramar turno" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "No reprogramar" }));
+
+      expect(screen.queryByRole("region", { name: "Reprogramar turno" })).not.toBeInTheDocument();
+      expect(turnosApi.reprogramarTurno).not.toHaveBeenCalled();
+    });
+
+    it("si el turno es dentro de menos de 2 horas, el servidor lo rechaza y se muestra el motivo en el panel", async () => {
+      vi.mocked(turnosApi.misTurnos).mockResolvedValue([turno({ id: 8, estado: "RESERVADO" })]);
+      vi.mocked(turnosApi.reprogramarTurno).mockRejectedValue(errorApi(400, "Para reprogramar necesitás al menos 2 horas de anticipación"));
+      montar();
+
+      await userEvent.click(await screen.findByRole("button", { name: /Reprogramar/ }));
+      await userEvent.click(await screen.findByRole("button", { name: "12:00" }));
+      await userEvent.click(screen.getByRole("button", { name: /^Mover al/ }));
+
+      expect(await screen.findByText("Para reprogramar necesitás al menos 2 horas de anticipación")).toBeInTheDocument();
+    });
   });
 
   it("muestra el mensaje de vacío cuando todavía no reservó nada", async () => {

@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
-import { CalendarBlank, CheckCircle, MapPin, ShieldCheck, Star, XCircle } from "@phosphor-icons/react";
+import { ArrowsClockwise, CalendarBlank, CheckCircle, MapPin, ShieldCheck, Star, XCircle } from "@phosphor-icons/react";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { cancelarTurno, confirmarTurno, misTurnos } from "../api/turnos";
 import { crearEncuesta, obtenerEncuesta } from "../api/encuestas";
+import { ReprogramarTurno } from "../components/ReprogramarTurno";
 import { extraerError } from "../utils/errores";
+import { fechaHoraLegible } from "../utils/fechas";
 import { ETIQUETA_ESTADO } from "../utils/etiquetas";
 import type { Encuesta, MotivoCancelacion, Turno } from "../types";
 import "./MisTurnosPage.css";
+
+/** Primero lo que viene (el más próximo arriba) y después el historial, del más reciente al más viejo. */
+function ordenarParaMostrar(turnos: Turno[]): Turno[] {
+  const pendiente = (t: Turno) => t.estado === "RESERVADO" || t.estado === "CONFIRMADO";
+  const proximos = turnos.filter(pendiente).sort((a, b) => a.inicio.localeCompare(b.inicio));
+  const resto = turnos.filter((t) => !pendiente(t)).sort((a, b) => b.inicio.localeCompare(a.inicio));
+  return [...proximos, ...resto];
+}
 
 export function MisTurnosPage() {
   const [turnos, setTurnos] = useState<Turno[] | null>(null);
@@ -14,9 +24,11 @@ export function MisTurnosPage() {
   const [motivoPorTurno, setMotivoPorTurno] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<number | null>(null);
+  const [reprogramando, setReprogramando] = useState<number | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);
 
   function cargar() {
-    misTurnos().then(setTurnos).catch(() => setError("No se pudieron cargar tus turnos."));
+    misTurnos().then((todos) => setTurnos(ordenarParaMostrar(todos))).catch(() => setError("No se pudieron cargar tus turnos."));
   }
 
   useEffect(() => {
@@ -68,6 +80,7 @@ export function MisTurnosPage() {
     <main className="page">
       <h1>Mis turnos</h1>
       {error && <p className="error-banner">{error}</p>}
+      {aviso && <p className="mis-turnos__aviso">{aviso}</p>}
       {turnos === null && !error && <p className="empty-state">Cargando…</p>}
       {turnos !== null && turnos.length === 0 && <p className="empty-state">Todavía no reservaste ningún turno.</p>}
 
@@ -76,7 +89,7 @@ export function MisTurnosPage() {
           <li key={turno.id} className="card mis-turnos__item">
             <div className="mis-turnos__datos">
               <strong>{turno.medicoNombre}</strong>
-              <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
+              <span><CalendarBlank size={15} aria-hidden="true" /> {fechaHoraLegible(turno.inicio)}</span>
               <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
               <span><ShieldCheck size={15} aria-hidden="true" /> {turno.obraSocialNombre ?? "Particular"}</span>
               {turno.motivoConsulta && <span className="mis-turnos__motivo">"{turno.motivoConsulta}"</span>}
@@ -95,6 +108,15 @@ export function MisTurnosPage() {
                       <CheckCircle size={16} aria-hidden="true" /> Confirmar
                     </button>
                   )}
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={procesando === turno.id}
+                    aria-expanded={reprogramando === turno.id}
+                    onClick={() => setReprogramando(reprogramando === turno.id ? null : turno.id)}
+                  >
+                    <ArrowsClockwise size={16} aria-hidden="true" /> Reprogramar
+                  </button>
                   <select
                     aria-label="Motivo de cancelación"
                     value={motivoPorTurno[turno.id] ?? ""}
@@ -111,6 +133,18 @@ export function MisTurnosPage() {
                 </>
               )}
             </div>
+            {reprogramando === turno.id && (
+              <ReprogramarTurno
+                turno={turno}
+                onCerrar={() => setReprogramando(null)}
+                onReprogramado={(movido) => {
+                  setReprogramando(null);
+                  setError(null);
+                  setAviso(`Listo: tu turno pasó al ${fechaHoraLegible(movido.inicio)} y quedó como "Reservado": confirmalo de nuevo.`);
+                  cargar();
+                }}
+              />
+            )}
             {turno.estado === "ATENDIDO" && <EncuestaTurno turnoId={turno.id} />}
           </li>
         ))}

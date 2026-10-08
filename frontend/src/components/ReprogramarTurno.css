@@ -1,0 +1,68 @@
+.reprogramar {
+  flex-basis: 100%;
+  margin-top: var(--space-sm);
+  padding: var(--space-md);
+  background: var(--color-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.reprogramar h3 {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.98rem;
+}
+
+.reprogramar__fecha {
+  max-width: 220px;
+}
+
+.reprogramar__horarios {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-sm) 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reprogramar__horarios button {
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-primary);
+  background: var(--color-card);
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.reprogramar__horarios button:hover,
+.reprogramar__horarios button.activo {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.reprogramar__cerrado {
+  background: var(--color-warning-bg);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+  margin: var(--space-sm) 0;
+}
+
+.reprogramar__acciones {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: var(--space-sm);
+}
+
+.reprogramar__nota {
+  margin: var(--space-sm) 0 0;
+  font-size: 0.82rem;
+  color: var(--color-muted-foreground);
+}

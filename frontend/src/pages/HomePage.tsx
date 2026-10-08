@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { CheckCircle, Circle, FirstAidKit, Headset, Shield, Stethoscope, User } from "@phosphor-icons/react";
 
 const ROLES = [
@@ -33,6 +34,7 @@ const FASES = [
 ];
 
 export function HomePage() {
+  const { estaAutenticado } = useAuth();
   return (
     <main className="page">
       <section className="home-hero">
@@ -47,7 +49,7 @@ export function HomePage() {
         </p>
         <div className="home-hero__acciones">
           <Link to="/medicos" className="btn btn-primary">Buscar por especialidad</Link>
-          <Link to="/registro" className="btn btn-secondary">Crear cuenta de paciente</Link>
+          {!estaAutenticado && <Link to="/registro" className="btn btn-secondary">Crear cuenta de paciente</Link>}
         </div>
       </section>
 

@@ -54,6 +54,16 @@ describe("Header", () => {
     expect(screen.getByRole("link", { name: /Auditoría/ })).toHaveAttribute("href", "/auditoria");
   });
 
+  it("solo el admin ve la pantalla de usuarios", () => {
+    renderConSesion(<Header />, { usuario: usuario("ADMIN") });
+    expect(screen.getByRole("link", { name: /Usuarios/ })).toHaveAttribute("href", "/usuarios");
+  });
+
+  it.each(["RECEPCIONISTA", "MEDICO", "PACIENTE"] as const)("un %s no ve la pantalla de usuarios", (rol) => {
+    renderConSesion(<Header />, { usuario: usuario(rol) });
+    expect(screen.queryByRole("link", { name: /Usuarios/ })).not.toBeInTheDocument();
+  });
+
   it("la recepción ve lo del mostrador, pero no las métricas, la auditoría ni nada de paciente", () => {
     renderConSesion(<Header />, { usuario: usuario("RECEPCIONISTA") });
 

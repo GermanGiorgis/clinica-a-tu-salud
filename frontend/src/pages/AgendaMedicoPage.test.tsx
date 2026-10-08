@@ -16,8 +16,8 @@ vi.mock("../api/motivosCancelacion");
 
 const motivos = [{ id: 10, nombre: "Médico no disponible", descripcion: null }];
 const medicos = [
-  { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [] },
-  { id: 5, nombre: "Laura", apellido: "Lopez", matricula: "MP-5", especialidades: [] },
+  { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [], activo: true },
+  { id: 5, nombre: "Laura", apellido: "Lopez", matricula: "MP-5", especialidades: [], activo: true },
 ];
 
 function montar(rol: Rol) {
@@ -258,7 +258,47 @@ describe("AgendaMedicoPage", () => {
     });
   });
 
+  describe("reprogramar (personal)", () => {
+    it("el médico puede reprogramar un turno pendiente de su agenda y la agenda se recarga", async () => {
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ id: 4, medicoId: 7, estado: "CONFIRMADO" })]);
+      vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: ["12:00:00"], aviso: null });
+      vi.mocked(turnosApi.reprogramarTurno).mockResolvedValue(turno({ id: 4, estado: "RESERVADO" }));
+      montar("MEDICO");
+
+      await userEvent.click(await screen.findByRole("button", { name: /Reprogramar/ }));
+      await userEvent.click(await screen.findByRole("button", { name: "12:00" }));
+      await userEvent.click(screen.getByRole("button", { name: /^Mover al/ }));
+
+      await waitFor(() => expect(turnosApi.reprogramarTurno).toHaveBeenCalledWith(4, "2030-01-10T12:00:00"));
+      await waitFor(() => expect(turnosApi.agendaMedico).toHaveBeenCalledTimes(2));
+      expect(screen.queryByRole("region", { name: "Reprogramar turno" })).not.toBeInTheDocument();
+    });
+
+    it("un turno atendido, ausente o cancelado no se puede reprogramar", async () => {
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([
+        turno({ id: 1, estado: "ATENDIDO" }), turno({ id: 2, estado: "AUSENTE" }), turno({ id: 3, estado: "CANCELADO" }),
+      ]);
+      montar("MEDICO");
+
+      await screen.findByText("Atendido");
+
+      expect(screen.queryByRole("button", { name: /Reprogramar/ })).not.toBeInTheDocument();
+    });
+  });
+
   describe("como recepcionista", () => {
+    it("al elegir médico se piden también los dados de baja y se marcan, para poder cancelarles los turnos que quedaron", async () => {
+      vi.mocked(medicosApi.listarMedicos).mockResolvedValue([
+        { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [], activo: true },
+        { id: 9, nombre: "Baja", apellido: "Pérez", matricula: "MP-9", especialidades: [], activo: false },
+      ]);
+      montar("RECEPCIONISTA");
+
+      expect(await screen.findByRole("option", { name: "Baja Pérez (dado de baja)" })).toBeInTheDocument();
+      expect(screen.getByRole("option", { name: "Pedro Prueba" })).toBeInTheDocument();
+      expect(medicosApi.listarMedicos).toHaveBeenCalledWith(undefined, true);
+    });
+
     it("elige el médico igual que el admin y carga su agenda", async () => {
       vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ pacienteNombre: "Pablo Paciente" })]);
       montar("RECEPCIONISTA");

@@ -16,9 +16,9 @@ const clinica: Especialidad = { id: 1, nombre: "Clínica Médica", descripcion: 
 const dermato: Especialidad = { id: 2, nombre: "Dermatología", descripcion: "Piel, pelo y uñas" };
 const trauma: Especialidad = { id: 3, nombre: "Traumatología y Ortopedia", descripcion: null };
 
-const laura: Medico = { id: 5, nombre: "Laura", apellido: "Lopez", matricula: "MP-5", especialidades: [clinica] };
-const pedro: Medico = { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [dermato] };
-const ana: Medico = { id: 8, nombre: "Ana", apellido: "Alvarez", matricula: "MP-8", especialidades: [dermato, clinica] };
+const laura: Medico = { id: 5, nombre: "Laura", apellido: "Lopez", matricula: "MP-5", especialidades: [clinica], activo: true };
+const pedro: Medico = { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [dermato], activo: true };
+const ana: Medico = { id: 8, nombre: "Ana", apellido: "Alvarez", matricula: "MP-8", especialidades: [dermato, clinica], activo: true };
 
 const patologias: Patologia[] = [{ id: 1, nombre: "Granito en la piel", especialidad: dermato }];
 

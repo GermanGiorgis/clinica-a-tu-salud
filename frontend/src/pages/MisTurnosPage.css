@@ -80,3 +80,13 @@
   min-width: 140px;
   width: auto;
 }
+
+.mis-turnos__aviso {
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  margin: var(--space-md) 0;
+}

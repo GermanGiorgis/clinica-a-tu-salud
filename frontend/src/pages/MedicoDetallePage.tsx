@@ -6,22 +6,11 @@ import { crearTurno } from "../api/turnos";
 import { misAfiliaciones } from "../api/afiliaciones";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
+import { soloDigitos } from "../utils/dni";
+import { fechaLegible, hoyISO, ultimoDiaReservableISO } from "../utils/fechas";
 import { esPersonalDeLaClinica } from "../utils/roles";
 import type { Afiliacion, Medico } from "../types";
 import "./MedicoDetallePage.css";
-
-/** Cuántos días hacia adelante se puede reservar (el backend rechaza más allá: ver VENTANA_RESERVA_DIAS). */
-const VENTANA_RESERVA_DIAS = 60;
-
-function hoyISO(): string {
-  return new Date().toLocaleDateString("sv-SE"); // sv-SE = formato YYYY-MM-DD
-}
-
-function ultimoDiaReservableISO(): string {
-  const fecha = new Date();
-  fecha.setDate(fecha.getDate() + VENTANA_RESERVA_DIAS);
-  return fecha.toLocaleDateString("sv-SE");
-}
 
 export function MedicoDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -173,7 +162,7 @@ export function MedicoDetallePage() {
               {esStaff && (
                 <label>
                   DNI del paciente
-                  <input className="input" value={pacienteDni} onChange={(e) => setPacienteDni(e.target.value)} />
+                  <input className="input" inputMode="numeric" autoComplete="off" placeholder="Solo números" value={pacienteDni} onChange={(e) => setPacienteDni(soloDigitos(e.target.value))} />
                 </label>
               )}
               {!esStaff && afiliaciones.length > 0 && (
@@ -192,7 +181,7 @@ export function MedicoDetallePage() {
                 <textarea className="input" value={motivoConsulta} onChange={(e) => setMotivoConsulta(e.target.value)} rows={2} />
               </label>
               <button type="button" className="btn btn-primary" onClick={reservar} disabled={reservando || (esStaff && !pacienteDni)}>
-                {reservando ? "Reservando…" : `Reservar ${fecha} ${horarioElegido.slice(0, 5)}`}
+                {reservando ? "Reservando…" : `Reservar el ${fechaLegible(fecha)} a las ${horarioElegido.slice(0, 5)}`}
               </button>
             </>
           )}

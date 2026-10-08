@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { soloDigitos } from "../utils/dni";
 import { extraerError } from "../utils/errores";
 import "../components/AuthForm.css";
 
@@ -46,7 +47,7 @@ export function RegistroPage() {
         <label>Contraseña (entre 10 y 72 caracteres)<input type="password" minLength={10} maxLength={72} required {...campo("password")} /></label>
         <label>Teléfono (opcional)<input {...campo("telefono")} /></label>
         <div className="auth-form__fila">
-          <label>DNI<input required {...campo("dni")} /></label>
+          <label>DNI (solo números)<input required inputMode="numeric" autoComplete="off" minLength={6} maxLength={9} {...campo("dni")} onChange={(e) => setForm({ ...form, dni: soloDigitos(e.target.value) })} /></label>
           <label>Fecha de nacimiento<input type="date" required {...campo("fechaNacimiento")} /></label>
         </div>
         {error && <p className="auth-form__error">{error}</p>}

@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarBlank, CheckCircle, ClipboardText, ClockCounterClockwise, MapPin, Receipt, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
+import { ArrowsClockwise, CalendarBlank, CheckCircle, ClipboardText, ClockCounterClockwise, MapPin, Receipt, ShieldCheck, UserCircleMinus, XCircle } from "@phosphor-icons/react";
 import { listarMedicos } from "../api/medicos";
 import { listarMotivosCancelacion } from "../api/motivosCancelacion";
 import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../api/turnos";
 import { useAuth } from "../context/AuthContext";
+import { ReprogramarTurno } from "../components/ReprogramarTurno";
 import { extraerError } from "../utils/errores";
+import { fechaHoraLegible } from "../utils/fechas";
 import { ETIQUETA_ESTADO } from "../utils/etiquetas";
 import { esPersonalDeMostrador, pasoLaTolerancia, TOLERANCIA_AUSENCIA_MINUTOS } from "../utils/roles";
 import type { Medico, MotivoCancelacion, Turno } from "../types";
@@ -25,13 +27,14 @@ export function AgendaMedicoPage() {
   const [motivoPorTurno, setMotivoPorTurno] = useState<Record<number, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<number | null>(null);
+  const [reprogramando, setReprogramando] = useState<number | null>(null);
   /** Vacío = los turnos de hoy en adelante; con una fecha, los de ese día (también pasado: para cerrar los que quedaron sin resolver). */
   const [fecha, setFecha] = useState("");
 
   useEffect(() => {
     listarMotivosCancelacion().then(setMotivos).catch(() => {});
     if (eligeMedico) {
-      listarMedicos().then(setMedicos).catch(() => setError("No se pudo cargar la lista de médicos."));
+      listarMedicos(undefined, true).then(setMedicos).catch(() => setError("No se pudo cargar la lista de médicos."));
     }
   }, [eligeMedico]);
 
@@ -116,7 +119,7 @@ export function AgendaMedicoPage() {
             >
               <option value="">Elegí un médico…</option>
               {medicos.map((m) => (
-                <option key={m.id} value={m.id}>{m.nombre} {m.apellido}</option>
+                <option key={m.id} value={m.id}>{m.nombre} {m.apellido}{m.activo ? "" : " (dado de baja)"}</option>
               ))}
             </select>
           </label>
@@ -144,7 +147,7 @@ export function AgendaMedicoPage() {
           <li key={turno.id} className="card agenda-medico__item">
             <div className="agenda-medico__datos">
               <strong>{turno.pacienteNombre}</strong>
-              <span><CalendarBlank size={15} aria-hidden="true" /> {new Date(turno.inicio).toLocaleString("es-AR", { dateStyle: "full", timeStyle: "short" })}</span>
+              <span><CalendarBlank size={15} aria-hidden="true" /> {fechaHoraLegible(turno.inicio)}</span>
               <span><MapPin size={15} aria-hidden="true" /> {turno.consultorioNombre}</span>
               <span><ShieldCheck size={15} aria-hidden="true" /> {turno.obraSocialNombre ?? "Particular"}</span>
               {turno.motivoConsulta && <span className="agenda-medico__motivo">"{turno.motivoConsulta}"</span>}
@@ -194,6 +197,15 @@ export function AgendaMedicoPage() {
               )}
               {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
                 <>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    disabled={procesando === turno.id}
+                    aria-expanded={reprogramando === turno.id}
+                    onClick={() => setReprogramando(reprogramando === turno.id ? null : turno.id)}
+                  >
+                    <ArrowsClockwise size={16} aria-hidden="true" /> Reprogramar
+                  </button>
                   <select
                     aria-label="Motivo de cancelación"
                     value={motivoPorTurno[turno.id] ?? ""}
@@ -210,6 +222,16 @@ export function AgendaMedicoPage() {
                 </>
               )}
             </div>
+            {reprogramando === turno.id && (
+              <ReprogramarTurno
+                turno={turno}
+                onCerrar={() => setReprogramando(null)}
+                onReprogramado={() => {
+                  setReprogramando(null);
+                  cargar();
+                }}
+              />
+            )}
           </li>
         ))}
       </ul>

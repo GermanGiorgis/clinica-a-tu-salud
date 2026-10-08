@@ -15,7 +15,22 @@ describe("extraerError", () => {
 
   it("agrega el detalle por campo cuando la API devuelve errores de validación", () => {
     const err = errorHttp(400, { error: "Datos inválidos", errores: { nombre: "no puede estar vacío", dni: "es obligatorio" } });
-    expect(extraerError(err)).toBe("Datos inválidos (nombre: no puede estar vacío, dni: es obligatorio)");
+    expect(extraerError(err)).toBe("Datos inválidos (Nombre: no puede estar vacío, DNI: es obligatorio)");
+  });
+
+  it("nombra los campos como los ve la persona y no como los llama la API", () => {
+    const err = errorHttp(400, {
+      error: "Revisá los datos ingresados",
+      errores: { password: "demasiado corta", fechaNacimiento: "debe ser una fecha pasada", pacienteDni: "inválido" },
+    });
+    expect(extraerError(err)).toBe(
+      "Revisá los datos ingresados (Contraseña: demasiado corta, Fecha de nacimiento: debe ser una fecha pasada, DNI del paciente: inválido)",
+    );
+  });
+
+  it("si el campo no está en la lista deja el nombre tal cual en vez de perder el dato", () => {
+    const err = errorHttp(400, { error: "Datos inválidos", errores: { campoNuevo: "no va" } });
+    expect(extraerError(err)).toBe("Datos inválidos (campoNuevo: no va)");
   });
 
   it("usa el mensaje por defecto si la respuesta no trae { error }", () => {

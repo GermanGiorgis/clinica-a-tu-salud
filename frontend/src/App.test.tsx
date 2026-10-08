@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import * as auditoriaApi from "./api/auditoria";
 import * as diasApi from "./api/diasNoLaborables";
+import * as usuariosApi from "./api/usuarios";
 import * as historialApi from "./api/historial";
 import * as pacientesApi from "./api/pacientes";
 import * as metricasApi from "./api/metricas";
@@ -17,6 +18,7 @@ import type { Rol } from "./types";
 
 vi.mock("./api/auditoria");
 vi.mock("./api/diasNoLaborables");
+vi.mock("./api/usuarios");
 vi.mock("./api/pacientes");
 vi.mock("./api/historial");
 vi.mock("./api/metricas");
@@ -46,6 +48,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
     vi.mocked(pacientesApi.pacientesPendientes).mockResolvedValue([]);
     vi.mocked(auditoriaApi.accesosHistorial).mockResolvedValue([]);
     vi.mocked(diasApi.listarDiasNoLaborables).mockResolvedValue([]);
+    vi.mocked(usuariosApi.listarUsuarios).mockResolvedValue([]);
     vi.mocked(historialApi.historialDePaciente).mockResolvedValue([]);
     vi.mocked(historialApi.miHistorial).mockResolvedValue([]);
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
@@ -82,7 +85,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
   });
 
   describe("sin sesión, las pantallas privadas mandan a iniciar sesión", () => {
-    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/pendientes", "/dias-no-laborables", "/auditoria", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
+    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/pendientes", "/dias-no-laborables", "/usuarios", "/auditoria", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
       "%s",
       (ruta) => {
         abrir(ruta);
@@ -137,6 +140,22 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
       abrir(ruta);
 
       expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
+    });
+  });
+
+  describe("usuarios: solo admin", () => {
+    it("el admin entra y se pide la lista de cuentas", async () => {
+      abrir("/usuarios", "ADMIN");
+
+      expect(await screen.findByRole("heading", { name: "Usuarios", level: 1 })).toBeInTheDocument();
+      expect(usuariosApi.listarUsuarios).toHaveBeenCalled();
+    });
+
+    it.each(["RECEPCIONISTA", "MEDICO", "PACIENTE"] as const)("un %s es mandado al inicio sin pedir nada", (rol) => {
+      abrir("/usuarios", rol);
+
+      expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
+      expect(usuariosApi.listarUsuarios).not.toHaveBeenCalled();
     });
   });
 

@@ -19,6 +19,7 @@ import { MetricasPage } from "./pages/MetricasPage";
 import { PacientesPendientesPage } from "./pages/PacientesPendientesPage";
 import { AuditoriaPage } from "./pages/AuditoriaPage";
 import { DiasNoLaborablesPage } from "./pages/DiasNoLaborablesPage";
+import { UsuariosPage } from "./pages/UsuariosPage";
 import "./App.css";
 
 export default function App() {
@@ -110,6 +111,14 @@ export default function App() {
             element={
               <ProtectedRoute rolesPermitidos={["RECEPCIONISTA", "ADMIN"]}>
                 <DiasNoLaborablesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/usuarios"
+            element={
+              <ProtectedRoute rolesPermitidos={["ADMIN"]}>
+                <UsuariosPage />
               </ProtectedRoute>
             }
           />

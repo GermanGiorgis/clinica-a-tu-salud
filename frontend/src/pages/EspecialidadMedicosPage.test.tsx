@@ -12,8 +12,8 @@ vi.mock("../api/medicos");
 const dermato: Especialidad = { id: 2, nombre: "Dermatología", descripcion: "Piel, pelo y uñas" };
 const clinica: Especialidad = { id: 1, nombre: "Clínica Médica", descripcion: null };
 
-const pedro: Medico = { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [dermato] };
-const ana: Medico = { id: 8, nombre: "Ana", apellido: "Alvarez", matricula: "MP-8", especialidades: [dermato, clinica] };
+const pedro: Medico = { id: 7, nombre: "Pedro", apellido: "Prueba", matricula: "MP-7", especialidades: [dermato], activo: true };
+const ana: Medico = { id: 8, nombre: "Ana", apellido: "Alvarez", matricula: "MP-8", especialidades: [dermato, clinica], activo: true };
 
 function montar(ruta = "/medicos/especialidad/2") {
   renderConSesion(<EspecialidadMedicosPage />, { ruta, path: "/medicos/especialidad/:especialidadId" });

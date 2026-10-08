@@ -9,6 +9,18 @@ export interface Usuario {
   rol: Rol;
 }
 
+/** Una cuenta tal como la lista el admin (activa o de baja). */
+export interface UsuarioListado {
+  id: number;
+  email: string;
+  nombre: string;
+  apellido: string;
+  telefono: string | null;
+  rol: Rol;
+  activo: boolean;
+  perfilId: number | null;
+}
+
 export interface Especialidad {
   id: number;
   nombre: string;
@@ -21,6 +33,8 @@ export interface Medico {
   apellido: string;
   matricula: string;
   especialidades: Especialidad[];
+  /** Falso = dado de baja: no se ve ni se puede reservar, salvo para el personal del mostrador. */
+  activo: boolean;
 }
 
 export interface Disponibilidad {

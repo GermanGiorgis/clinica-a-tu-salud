@@ -1,10 +1,13 @@
 import { apiClient } from "./client";
 import type { Disponibilidad, Medico } from "../types";
 
-export async function listarMedicos(especialidadId?: number): Promise<Medico[]> {
-  const { data } = await apiClient.get<Medico[]>("/api/medicos", {
-    params: especialidadId ? { especialidadId } : undefined,
-  });
+/**
+ * `incluirInactivos` solo lo respeta el backend para admin y recepción (para elegir la agenda de un médico
+ * dado de baja y cancelarle los turnos que le quedaron); para cualquier otra persona se ignora.
+ */
+export async function listarMedicos(especialidadId?: number, incluirInactivos?: boolean): Promise<Medico[]> {
+  const params = { ...(especialidadId ? { especialidadId } : {}), ...(incluirInactivos ? { incluirInactivos: true } : {}) };
+  const { data } = await apiClient.get<Medico[]>("/api/medicos", { params: Object.keys(params).length ? params : undefined });
   return data;
 }
 

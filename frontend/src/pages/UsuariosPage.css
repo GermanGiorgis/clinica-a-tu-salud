@@ -1,0 +1,126 @@
+.usuarios__intro {
+  color: var(--color-muted-foreground);
+  margin: 0 0 var(--space-lg);
+}
+
+.usuarios__aviso {
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  margin: var(--space-md) 0;
+}
+
+.usuarios__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+}
+
+.usuarios__form label {
+  margin: 0;
+}
+
+.usuarios__especialidades {
+  grid-column: 1 / -1;
+  max-height: 220px;
+  overflow-y: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-sm) var(--space-md);
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 0.2rem var(--space-md);
+}
+
+.usuarios__especialidades legend {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: var(--color-muted-foreground);
+  padding: 0 0.3rem;
+}
+
+.usuarios__check {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 400;
+}
+
+.usuarios__check input {
+  width: auto;
+}
+
+.usuarios__acciones-form {
+  grid-column: 1 / -1;
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.usuarios__filtros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md) var(--space-lg);
+  margin: var(--space-lg) 0 var(--space-sm);
+}
+
+.usuarios__filtros label {
+  flex: 1;
+  min-width: 200px;
+  max-width: 320px;
+}
+
+.usuarios__lista {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.usuarios__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  padding: var(--space-md) var(--space-lg);
+}
+
+.usuarios__item--baja {
+  background: var(--color-muted);
+}
+
+.usuarios__item--baja .usuarios__datos strong {
+  color: var(--color-muted-foreground);
+  text-decoration: line-through;
+}
+
+.usuarios__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+}
+
+.usuarios__datos span {
+  color: var(--color-muted-foreground);
+}
+
+.usuarios__estado {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.usuarios__rol {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}

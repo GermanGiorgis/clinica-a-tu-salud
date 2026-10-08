@@ -35,6 +35,12 @@ export async function cancelarTurno(id: number, motivoCancelacionId: number): Pr
   return data;
 }
 
+/** El mismo turno en otro horario del mismo médico; vuelve a quedar RESERVADO. `inicio`: YYYY-MM-DDTHH:mm:ss. */
+export async function reprogramarTurno(id: number, inicio: string): Promise<Turno> {
+  const { data } = await apiClient.patch<Turno>(`/api/turnos/${id}/reprogramar`, { inicio });
+  return data;
+}
+
 export async function confirmarTurno(id: number): Promise<Turno> {
   const { data } = await apiClient.patch<Turno>(`/api/turnos/${id}/confirmar`);
   return data;
