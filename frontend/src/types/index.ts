@@ -1,4 +1,4 @@
-export type Rol = "PACIENTE" | "MEDICO" | "ADMIN";
+export type Rol = "PACIENTE" | "MEDICO" | "RECEPCIONISTA" | "ADMIN";
 
 export type EstadoTurno = "RESERVADO" | "CONFIRMADO" | "ATENDIDO" | "AUSENTE" | "CANCELADO";
 
@@ -26,6 +26,8 @@ export interface Medico {
 export interface Disponibilidad {
   fecha: string;
   horariosLibres: string[];
+  /** Por qué no hay horarios cuando el día está cerrado (feriado, ausencia del médico); null en un día normal. */
+  aviso?: string | null;
 }
 
 export interface Turno {
@@ -222,4 +224,26 @@ export interface AccesoHistorial {
   pacienteId: number;
   pacienteNombre: string;
   accedidoEn: string;
+}
+
+/** Feriado, cierre de la clínica (medicoId null) o ausencia de un médico, cargado por anticipado. */
+export interface DiaNoLaborable {
+  id: number;
+  desde: string;
+  hasta: string;
+  descripcion: string;
+  medicoId: number | null;
+  medicoNombre: string | null;
+}
+
+/** Turno pendiente que cae dentro de un feriado o una ausencia; trae el teléfono para poder avisarle al paciente. */
+export interface TurnoAfectado {
+  id: number;
+  inicio: string;
+  estado: EstadoTurno;
+  medicoId: number;
+  medicoNombre: string;
+  pacienteNombre: string;
+  pacienteTelefono: string | null;
+  consultorioNombre: string;
 }

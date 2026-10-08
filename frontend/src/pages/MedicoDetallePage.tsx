@@ -6,6 +6,7 @@ import { crearTurno } from "../api/turnos";
 import { misAfiliaciones } from "../api/afiliaciones";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
+import { esPersonalDeLaClinica } from "../utils/roles";
 import type { Afiliacion, Medico } from "../types";
 import "./MedicoDetallePage.css";
 
@@ -31,6 +32,8 @@ export function MedicoDetallePage() {
   const [medico, setMedico] = useState<Medico | null>(null);
   const [fecha, setFecha] = useState(hoyISO());
   const [horarios, setHorarios] = useState<string[] | null>(null);
+  /** Si el día está cerrado (feriado, ausencia del médico), por qué: se muestra en lugar de "no hay horarios". */
+  const [aviso, setAviso] = useState<string | null>(null);
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
   const [motivoConsulta, setMotivoConsulta] = useState("");
   const [pacienteDni, setPacienteDni] = useState("");
@@ -54,9 +57,13 @@ export function MedicoDetallePage() {
 
   useEffect(() => {
     setHorarios(null);
+    setAviso(null);
     setHorarioElegido(null);
     obtenerDisponibilidad(medicoId, fecha)
-      .then((d) => setHorarios(d.horariosLibres))
+      .then((d) => {
+        setHorarios(d.horariosLibres);
+        setAviso(d.aviso ?? null);
+      })
       .catch(() => setError("No se pudo calcular la disponibilidad."));
   }, [medicoId, fecha]);
 
@@ -80,13 +87,17 @@ export function MedicoDetallePage() {
       setAfiliacionId("");
       const d = await obtenerDisponibilidad(medicoId, fecha);
       setHorarios(d.horariosLibres);
+      setAviso(d.aviso ?? null);
     } catch (err) {
       setError(extraerError(err, "No se pudo reservar el turno."));
       // Casi siempre es un 409: otra persona se llevó ese horario. Se vuelve a pedir la disponibilidad
       // para que el horario ocupado deje de verse (y el usuario no lo reintente en vano).
       setHorarioElegido(null);
       obtenerDisponibilidad(medicoId, fecha)
-        .then((d) => setHorarios(d.horariosLibres))
+        .then((d) => {
+          setHorarios(d.horariosLibres);
+          setAviso(d.aviso ?? null);
+        })
         .catch(() => {});
     } finally {
       setReservando(false);
@@ -97,7 +108,7 @@ export function MedicoDetallePage() {
     return <main className="page">{error ? <p className="error-banner">{error}</p> : <p className="empty-state">Cargando…</p>}</main>;
   }
 
-  const esStaff = usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN";
+  const esStaff = esPersonalDeLaClinica(usuario?.rol);
   const puedeReservar = usuario?.rol === "PACIENTE" || esStaff;
 
   return (
@@ -121,7 +132,9 @@ export function MedicoDetallePage() {
 
       <h2>Horarios disponibles</h2>
       {horarios === null && <p className="empty-state">Calculando…</p>}
-      {horarios !== null && horarios.length === 0 && <p className="empty-state">No hay horarios libres ese día.</p>}
+      {horarios !== null && horarios.length === 0 && (
+        <p className={aviso ? "medico-detalle__cerrado" : "empty-state"}>{aviso ?? "No hay horarios libres ese día."}</p>
+      )}
       <ul className="medico-detalle__horarios">
         {horarios?.map((h) => (
           <li key={h}>

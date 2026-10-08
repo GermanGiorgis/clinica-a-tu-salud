@@ -113,3 +113,14 @@
   color: var(--color-accent-hover);
   font-weight: 500;
 }
+
+/* Día cerrado (feriado o ausencia del médico): se destaca para que no parezca que simplemente no hay lugar. */
+.medico-detalle__cerrado {
+  background: var(--color-warning-bg);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  margin: var(--space-md) 0;
+}

@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { Calendar, ChartBar, ClipboardText, ListMagnifyingGlass, ShieldCheck, SignOut, Stethoscope, UserCheck, UserCircle } from "@phosphor-icons/react";
+import { Calendar, CalendarX, ChartBar, ClipboardText, ListMagnifyingGlass, ShieldCheck, SignOut, Stethoscope, UserCheck, UserCircle } from "@phosphor-icons/react";
 import { useAuth } from "../context/AuthContext";
+import { esPersonalDeMostrador } from "../utils/roles";
 import "./Header.css";
 
 export function Header() {
@@ -40,9 +41,14 @@ export function Header() {
             <ShieldCheck size={18} aria-hidden="true" /> Mi cobertura
           </Link>
         )}
-        {estaAutenticado && (usuario?.rol === "MEDICO" || usuario?.rol === "ADMIN") && (
+        {estaAutenticado && (usuario?.rol === "MEDICO" || esPersonalDeMostrador(usuario?.rol)) && (
           <Link to="/agenda" className={activo("/agenda") ? "activo" : ""}>
-            <Calendar size={18} aria-hidden="true" /> Mi agenda
+            <Calendar size={18} aria-hidden="true" /> {usuario?.rol === "MEDICO" ? "Mi agenda" : "Agenda"}
+          </Link>
+        )}
+        {estaAutenticado && esPersonalDeMostrador(usuario?.rol) && (
+          <Link to="/dias-no-laborables" className={activo("/dias-no-laborables") ? "activo" : ""}>
+            <CalendarX size={18} aria-hidden="true" /> Feriados y ausencias
           </Link>
         )}
         {estaAutenticado && usuario?.rol === "ADMIN" && (
@@ -50,7 +56,7 @@ export function Header() {
             <ChartBar size={18} aria-hidden="true" /> Métricas
           </Link>
         )}
-        {estaAutenticado && usuario?.rol === "ADMIN" && (
+        {estaAutenticado && esPersonalDeMostrador(usuario?.rol) && (
           <Link to="/pacientes/pendientes" className={activo("/pacientes/pendientes") ? "activo" : ""}>
             <UserCheck size={18} aria-hidden="true" /> Verificar pacientes
           </Link>

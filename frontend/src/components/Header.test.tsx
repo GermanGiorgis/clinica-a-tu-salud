@@ -41,22 +41,37 @@ describe("Header", () => {
   it("un admin ve la agenda y las métricas", () => {
     renderConSesion(<Header />, { usuario: usuario("ADMIN") });
 
-    expect(screen.getByRole("link", { name: /Mi agenda/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Agenda" })).toHaveAttribute("href", "/agenda");
     expect(screen.getByRole("link", { name: /Métricas/ })).toHaveAttribute("href", "/metricas");
     expect(screen.queryByRole("link", { name: /Mis turnos/ })).not.toBeInTheDocument();
   });
 
-  it("solo el admin ve verificar pacientes y la auditoría", () => {
+  it("el admin ve verificar pacientes, feriados y la auditoría", () => {
     renderConSesion(<Header />, { usuario: usuario("ADMIN") });
 
     expect(screen.getByRole("link", { name: /Verificar pacientes/ })).toHaveAttribute("href", "/pacientes/pendientes");
+    expect(screen.getByRole("link", { name: /Feriados y ausencias/ })).toHaveAttribute("href", "/dias-no-laborables");
     expect(screen.getByRole("link", { name: /Auditoría/ })).toHaveAttribute("href", "/auditoria");
   });
 
-  it.each(["MEDICO", "PACIENTE"] as const)("un %s no ve verificar pacientes ni la auditoría", (rol) => {
+  it("la recepción ve lo del mostrador, pero no las métricas, la auditoría ni nada de paciente", () => {
+    renderConSesion(<Header />, { usuario: usuario("RECEPCIONISTA") });
+
+    expect(screen.getByRole("link", { name: "Agenda" })).toHaveAttribute("href", "/agenda");
+    expect(screen.getByRole("link", { name: /Verificar pacientes/ })).toHaveAttribute("href", "/pacientes/pendientes");
+    expect(screen.getByRole("link", { name: /Feriados y ausencias/ })).toHaveAttribute("href", "/dias-no-laborables");
+    expect(screen.getByRole("link", { name: "Médicos" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Métricas/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Auditoría/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Mis turnos|Mi historial|Mi cobertura/ })).not.toBeInTheDocument();
+    expect(screen.getByText("RECEPCIONISTA")).toBeInTheDocument();
+  });
+
+  it.each(["MEDICO", "PACIENTE"] as const)("un %s no ve verificar pacientes, feriados ni la auditoría", (rol) => {
     renderConSesion(<Header />, { usuario: usuario(rol) });
 
     expect(screen.queryByRole("link", { name: /Verificar pacientes/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Feriados y ausencias/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Auditoría/ })).not.toBeInTheDocument();
   });
 
@@ -64,7 +79,7 @@ describe("Header", () => {
     renderConSesion(<Header />, { usuario: usuario("ADMIN"), ruta: "/metricas" });
 
     expect(screen.getByRole("link", { name: /Métricas/ })).toHaveClass("activo");
-    expect(screen.getByRole("link", { name: /Mi agenda/ })).not.toHaveClass("activo");
+    expect(screen.getByRole("link", { name: "Agenda" })).not.toHaveClass("activo");
   });
 
   it("Salir cierra la sesión, borra el token y vuelve al inicio", async () => {

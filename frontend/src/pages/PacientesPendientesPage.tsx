@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { IdentificationCard, UserCheck, UserMinus } from "@phosphor-icons/react";
 import { pacientesPendientes, verificarPaciente } from "../api/pacientes";
 import { cambiarActivo } from "../api/usuarios";
+import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
 import type { PacienteAVerificar } from "../types";
 import "./PacientesPendientesPage.css";
@@ -12,6 +13,9 @@ import "./PacientesPendientesPage.css";
  * y un médico puede ver su historial.
  */
 export function PacientesPendientesPage() {
+  const { usuario } = useAuth();
+  // Desactivar una cuenta es del admin: la recepción verifica y, si algo no cierra, le avisa.
+  const puedeDesactivar = usuario?.rol === "ADMIN";
   const [pacientes, setPacientes] = useState<PacienteAVerificar[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [procesando, setProcesando] = useState<number | null>(null);
@@ -56,7 +60,7 @@ export function PacientesPendientesPage() {
       <h1>Pacientes por verificar</h1>
       <p className="pendientes__intro">
         Comparé estos datos con el documento de la persona antes de verificarla. Si una cuenta usa el DNI de
-        otra persona, desactivala.
+        otra persona, {puedeDesactivar ? "desactivala" : "no la verifiques y avisale al administrador"}.
       </p>
 
       {error && <p className="error-banner">{error}</p>}
@@ -77,9 +81,11 @@ export function PacientesPendientesPage() {
               <button type="button" className="btn btn-primary btn-sm" disabled={procesando === p.id} onClick={() => handleVerificar(p)}>
                 <UserCheck size={16} aria-hidden="true" /> Verificar identidad
               </button>
-              <button type="button" className="btn btn-danger btn-sm" disabled={procesando === p.id} onClick={() => handleDesactivar(p)}>
-                <UserMinus size={16} aria-hidden="true" /> Desactivar cuenta
-              </button>
+              {puedeDesactivar && (
+                <button type="button" className="btn btn-danger btn-sm" disabled={procesando === p.id} onClick={() => handleDesactivar(p)}>
+                  <UserMinus size={16} aria-hidden="true" /> Desactivar cuenta
+                </button>
+              )}
             </div>
           </li>
         ))}

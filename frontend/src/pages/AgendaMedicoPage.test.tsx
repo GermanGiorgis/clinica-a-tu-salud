@@ -1,7 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as medicosApi from "../api/medicos";
 import * as motivosApi from "../api/motivosCancelacion";
 import * as turnosApi from "../api/turnos";
@@ -62,14 +62,14 @@ describe("AgendaMedicoPage", () => {
       expect(await screen.findByText("No se pudo cargar la agenda.")).toBeInTheDocument();
     });
 
-    it("un turno reservado se puede confirmar y cancelar, y todavía no se puede atender", async () => {
+    it("un turno reservado se puede confirmar y cancelar, y todavía no se puede atender ni dar por ausente", async () => {
       vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ estado: "RESERVADO" })]);
       montar("MEDICO");
 
       expect(await screen.findByRole("button", { name: /Confirmar/ })).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Cancelar/ })).toBeInTheDocument();
       expect(screen.queryByRole("link", { name: /Cargar consulta/ })).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /Marcar ausente/ })).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Marcar ausente/ })).toBeDisabled();   // el turno es en 2030: falta mucho
     });
 
     it("un turno confirmado permite cargar la consulta, marcar ausente o cancelar", async () => {
@@ -120,7 +120,7 @@ describe("AgendaMedicoPage", () => {
     });
 
     it("marcar ausente llama a la API y recarga la agenda", async () => {
-      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ id: 4, estado: "CONFIRMADO" })]);
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ id: 4, estado: "CONFIRMADO", inicio: "2020-01-10T11:00:00" })]);
       vi.mocked(turnosApi.marcarAusente).mockResolvedValue(turno({ id: 4, estado: "AUSENTE" }));
       montar("MEDICO");
 
@@ -216,6 +216,77 @@ describe("AgendaMedicoPage", () => {
       await userEvent.type(screen.getByLabelText("Día"), "2026-10-01");
 
       await waitFor(() => expect(turnosApi.agendaMedico).toHaveBeenLastCalledWith(7, "2026-10-01"));
+    });
+  });
+
+  describe("tolerancia para marcar ausente", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function turnoDeLas10(estado: "RESERVADO" | "CONFIRMADO") {
+      return turno({ id: 4, estado, inicio: "2030-03-04T10:00:00", fin: "2030-03-04T10:30:00" });
+    }
+
+    it("antes de los 20 minutos el botón está deshabilitado y explica por qué", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2030-03-04T10:19:59"));
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turnoDeLas10("CONFIRMADO")]);
+      montar("MEDICO");
+
+      const boton = await screen.findByRole("button", { name: /Marcar ausente/ });
+      expect(boton).toBeDisabled();
+      expect(boton).toHaveAttribute("title", expect.stringContaining("20 minutos"));
+    });
+
+    it("a los 20 minutos justos se habilita", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2030-03-04T10:20:00"));
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turnoDeLas10("CONFIRMADO")]);
+      montar("MEDICO");
+
+      expect(await screen.findByRole("button", { name: /Marcar ausente/ })).toBeEnabled();
+    });
+
+    it("un turno que nunca se confirmó también se puede dar por ausente pasada la tolerancia", async () => {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date("2030-03-04T12:00:00"));
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turnoDeLas10("RESERVADO")]);
+      montar("MEDICO");
+
+      expect(await screen.findByRole("button", { name: /Marcar ausente/ })).toBeEnabled();
+    });
+  });
+
+  describe("como recepcionista", () => {
+    it("elige el médico igual que el admin y carga su agenda", async () => {
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([turno({ pacienteNombre: "Pablo Paciente" })]);
+      montar("RECEPCIONISTA");
+
+      expect(await screen.findByText("Elegí un médico para ver su agenda.")).toBeInTheDocument();
+      await screen.findByRole("option", { name: "Pedro Prueba" });
+      await userEvent.selectOptions(screen.getByLabelText("Médico"), "Pedro Prueba");
+
+      expect(await screen.findByText("Pablo Paciente")).toBeInTheDocument();
+      expect(turnosApi.agendaMedico).toHaveBeenCalledWith(7, undefined);
+    });
+
+    it("maneja los turnos (confirmar, cancelar) pero no ve nada de la parte clínica", async () => {
+      vi.mocked(turnosApi.agendaMedico).mockResolvedValue([
+        turno({ id: 1, estado: "RESERVADO" }),
+        turno({ id: 2, estado: "CONFIRMADO", inicio: "2020-01-10T09:00:00" }),
+        turno({ id: 3, estado: "ATENDIDO", inicio: "2020-01-09T09:00:00" }),
+      ]);
+      montar("RECEPCIONISTA");
+      await screen.findByRole("option", { name: "Pedro Prueba" });
+      await userEvent.selectOptions(screen.getByLabelText("Médico"), "Pedro Prueba");
+
+      expect(await screen.findAllByRole("button", { name: /Cancelar/ })).toHaveLength(2);
+      expect(screen.getByRole("button", { name: /Confirmar/ })).toBeInTheDocument();
+      expect(screen.getAllByRole("button", { name: /Marcar ausente/ })).toHaveLength(2);
+      expect(screen.queryByRole("link", { name: /Historial/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /consulta/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Facturar/ })).not.toBeInTheDocument();
     });
   });
 

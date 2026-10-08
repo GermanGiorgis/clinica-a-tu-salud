@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -76,6 +76,29 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     montar(null);
 
     expect(await screen.findByText("No hay horarios libres ese día.")).toBeInTheDocument();
+  });
+
+  it("si el día está cerrado (feriado, ausencia) muestra el aviso en lugar de 'no hay horarios'", async () => {
+    vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({
+      fecha: "2030-01-10", horariosLibres: [], aviso: "La clínica no atiende ese día: Día de la Vendimia",
+    });
+    montar(null);
+
+    expect(await screen.findByText("La clínica no atiende ese día: Día de la Vendimia")).toBeInTheDocument();
+    expect(screen.queryByText("No hay horarios libres ese día.")).not.toBeInTheDocument();
+  });
+
+  it("al pasar de un día cerrado a uno abierto el aviso desaparece", async () => {
+    vi.mocked(medicosApi.obtenerDisponibilidad)
+      .mockResolvedValueOnce({ fecha: "2030-01-10", horariosLibres: [], aviso: "El médico no atiende ese día" })
+      .mockResolvedValue({ fecha: "2030-01-11", horariosLibres: ["09:00:00"], aviso: null });
+    montar(null);
+    expect(await screen.findByText("El médico no atiende ese día")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/Fecha/), { target: { value: new Date(Date.now() + 86_400_000).toLocaleDateString("sv-SE") } });
+
+    expect(await screen.findByRole("button", { name: "09:00" })).toBeInTheDocument();
+    expect(screen.queryByText("El médico no atiende ese día")).not.toBeInTheDocument();
   });
 
   it("cambiar la fecha vuelve a consultar la disponibilidad de ese día", async () => {
@@ -200,8 +223,8 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     });
   });
 
-  describe("como médico o admin (reservando a nombre de un paciente)", () => {
-    it.each(["MEDICO", "ADMIN"] as const)("%s: pide el DNI y no deja reservar hasta completarlo", async (rol) => {
+  describe("como médico, recepción o admin (reservando a nombre de un paciente)", () => {
+    it.each(["MEDICO", "RECEPCIONISTA", "ADMIN"] as const)("%s: pide el DNI y no deja reservar hasta completarlo", async (rol) => {
       montar(usuario(rol));
 
       await elegirHorario();

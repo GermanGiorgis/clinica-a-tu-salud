@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CheckCircle, Circle, FirstAidKit, Shield, Stethoscope, User } from "@phosphor-icons/react";
+import { CheckCircle, Circle, FirstAidKit, Headset, Shield, Stethoscope, User } from "@phosphor-icons/react";
 
 const ROLES = [
   {
@@ -11,6 +11,11 @@ const ROLES = [
     nombre: "Médico",
     icono: Stethoscope,
     detalle: "Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta.",
+  },
+  {
+    nombre: "Recepción",
+    icono: Headset,
+    detalle: "Atiende el mostrador: ve la agenda de todos los médicos, reserva y cancela turnos, verifica la identidad de los pacientes y carga feriados y ausencias. No accede a historias clínicas.",
   },
   {
     nombre: "Admin",

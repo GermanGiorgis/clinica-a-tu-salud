@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
 import * as auditoriaApi from "./api/auditoria";
+import * as diasApi from "./api/diasNoLaborables";
 import * as historialApi from "./api/historial";
 import * as pacientesApi from "./api/pacientes";
 import * as metricasApi from "./api/metricas";
@@ -14,6 +15,7 @@ import { metricas, usuario } from "./test/fixtures";
 import type { Rol } from "./types";
 
 vi.mock("./api/auditoria");
+vi.mock("./api/diasNoLaborables");
 vi.mock("./api/pacientes");
 vi.mock("./api/historial");
 vi.mock("./api/metricas");
@@ -41,6 +43,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
     vi.mocked(metricasApi.obtenerMetricas).mockResolvedValue(metricas());
     vi.mocked(pacientesApi.pacientesPendientes).mockResolvedValue([]);
     vi.mocked(auditoriaApi.accesosHistorial).mockResolvedValue([]);
+    vi.mocked(diasApi.listarDiasNoLaborables).mockResolvedValue([]);
     vi.mocked(historialApi.historialDePaciente).mockResolvedValue([]);
     vi.mocked(historialApi.miHistorial).mockResolvedValue([]);
     vi.mocked(turnosApi.misTurnos).mockResolvedValue([]);
@@ -70,7 +73,7 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
   });
 
   describe("sin sesión, las pantallas privadas mandan a iniciar sesión", () => {
-    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/pendientes", "/auditoria", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
+    it.each(["/mis-turnos", "/agenda", "/historial", "/mi-cobertura", "/metricas", "/pacientes/pendientes", "/dias-no-laborables", "/auditoria", "/pacientes/3/historial", "/turnos/1/consulta", "/turnos/1/factura"])(
       "%s",
       (ruta) => {
         abrir(ruta);
@@ -126,6 +129,43 @@ describe("rutas de la aplicación y quién puede entrar a cada una", () => {
 
       expect(screen.getByRole("heading", { name: "Iniciar sesión" })).toBeInTheDocument();
     });
+  });
+
+  describe("el mostrador (recepción y admin): agenda, verificar pacientes y feriados", () => {
+    it.each(["RECEPCIONISTA", "ADMIN"] as const)("un %s entra a feriados y ausencias y se piden los períodos", async (rol) => {
+      abrir("/dias-no-laborables", rol);
+
+      expect(await screen.findByRole("heading", { name: "Feriados y ausencias" })).toBeInTheDocument();
+      expect(diasApi.listarDiasNoLaborables).toHaveBeenCalled();
+    });
+
+    it("la recepción entra a la agenda y a verificar pacientes", async () => {
+      abrir("/agenda", "RECEPCIONISTA");
+      expect(await screen.findByText("Elegí un médico para ver su agenda.")).toBeInTheDocument();
+      cleanup();
+
+      abrir("/pacientes/pendientes", "RECEPCIONISTA");
+      expect(await screen.findByText("No hay pacientes pendientes de verificación.")).toBeInTheDocument();
+    });
+
+    it.each(["MEDICO", "PACIENTE"] as const)("un %s es mandado al inicio de feriados y ausencias sin pedir nada", (rol) => {
+      abrir("/dias-no-laborables", rol);
+
+      expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
+      expect(diasApi.listarDiasNoLaborables).not.toHaveBeenCalled();
+    });
+
+    it.each([["/metricas"], ["/auditoria"], ["/pacientes/3/historial"], ["/turnos/1/factura"]])(
+      "la recepción no entra a %s (métricas, auditoría, historias clínicas, facturas)",
+      (ruta) => {
+        abrir(ruta, "RECEPCIONISTA");
+
+        expect(screen.getByRole("heading", { name: TITULO_INICIO })).toBeInTheDocument();
+        expect(metricasApi.obtenerMetricas).not.toHaveBeenCalled();
+        expect(auditoriaApi.accesosHistorial).not.toHaveBeenCalled();
+        expect(historialApi.historialDePaciente).not.toHaveBeenCalled();
+      },
+    );
   });
 
   describe("historial de un paciente: solo médico y admin", () => {

@@ -7,12 +7,16 @@ import { agendaMedico, cancelarTurno, confirmarTurno, marcarAusente } from "../a
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
 import { ETIQUETA_ESTADO } from "../utils/etiquetas";
+import { esPersonalDeMostrador, pasoLaTolerancia, TOLERANCIA_AUSENCIA_MINUTOS } from "../utils/roles";
 import type { Medico, MotivoCancelacion, Turno } from "../types";
 import "./AgendaMedicoPage.css";
 
 export function AgendaMedicoPage() {
   const { usuario } = useAuth();
-  const esAdmin = usuario?.rol === "ADMIN";
+  // El mostrador (admin y recepción) ve la agenda de cualquier médico, pero solo el médico y el admin
+  // entran a la parte clínica: la recepción maneja turnos, no historias clínicas ni facturas.
+  const eligeMedico = esPersonalDeMostrador(usuario?.rol);
+  const veParteClinica = usuario?.rol !== "RECEPCIONISTA";
 
   const [medicos, setMedicos] = useState<Medico[]>([]);
   const [medicoId, setMedicoId] = useState<number | null>(null);
@@ -26,13 +30,13 @@ export function AgendaMedicoPage() {
 
   useEffect(() => {
     listarMotivosCancelacion().then(setMotivos).catch(() => {});
-    if (esAdmin) {
+    if (eligeMedico) {
       listarMedicos().then(setMedicos).catch(() => setError("No se pudo cargar la lista de médicos."));
     }
-  }, [esAdmin]);
+  }, [eligeMedico]);
 
   function cargar() {
-    if (esAdmin && medicoId === null) {
+    if (eligeMedico && medicoId === null) {
       setTurnos(null);
       return;
     }
@@ -44,7 +48,7 @@ export function AgendaMedicoPage() {
   useEffect(() => {
     cargar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [medicoId, esAdmin, fecha]);
+  }, [medicoId, eligeMedico, fecha]);
 
   async function handleConfirmar(id: number) {
     setProcesando(id);
@@ -103,7 +107,7 @@ export function AgendaMedicoPage() {
       <h1>Agenda</h1>
 
       <div className="agenda-medico__filtros">
-        {esAdmin && (
+        {eligeMedico && (
           <label className="agenda-medico__selector">
             Médico
             <select
@@ -129,8 +133,8 @@ export function AgendaMedicoPage() {
       </div>
 
       {error && <p className="error-banner">{error}</p>}
-      {esAdmin && medicoId === null && !error && <p className="empty-state">Elegí un médico para ver su agenda.</p>}
-      {(!esAdmin || medicoId !== null) && turnos === null && !error && <p className="empty-state">Cargando…</p>}
+      {eligeMedico && medicoId === null && !error && <p className="empty-state">Elegí un médico para ver su agenda.</p>}
+      {(!eligeMedico || medicoId !== null) && turnos === null && !error && <p className="empty-state">Cargando…</p>}
       {turnos !== null && turnos.length === 0 && (
         <p className="empty-state">{fecha ? "No hay turnos ese día." : "No hay turnos para mostrar."}</p>
       )}
@@ -152,29 +156,33 @@ export function AgendaMedicoPage() {
               <span className={`badge badge--${turno.estado.toLowerCase()}`}>
                 {ETIQUETA_ESTADO[turno.estado]}
               </span>
-              <Link
-                to={`/pacientes/${turno.pacienteId}/historial`}
-                state={{ pacienteNombre: turno.pacienteNombre }}
-                className="btn btn-ghost btn-sm"
-              >
-                <ClockCounterClockwise size={16} aria-hidden="true" /> Historial
-              </Link>
+              {veParteClinica && (
+                <Link
+                  to={`/pacientes/${turno.pacienteId}/historial`}
+                  state={{ pacienteNombre: turno.pacienteNombre }}
+                  className="btn btn-ghost btn-sm"
+                >
+                  <ClockCounterClockwise size={16} aria-hidden="true" /> Historial
+                </Link>
+              )}
               {turno.estado === "RESERVADO" && (
                 <button type="button" className="btn btn-primary btn-sm" disabled={procesando === turno.id} onClick={() => handleConfirmar(turno.id)}>
                   <CheckCircle size={16} aria-hidden="true" /> Confirmar
                 </button>
               )}
-              {turno.estado === "CONFIRMADO" && (
-                <>
-                  <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
-                    <ClipboardText size={16} aria-hidden="true" /> Cargar consulta
-                  </Link>
-                  <button type="button" className="btn btn-ghost btn-sm" disabled={procesando === turno.id} onClick={() => handleAusente(turno.id)}>
-                    <UserCircleMinus size={16} aria-hidden="true" /> Marcar ausente
-                  </button>
-                </>
+              {turno.estado === "CONFIRMADO" && veParteClinica && (
+                <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
+                  <ClipboardText size={16} aria-hidden="true" /> Cargar consulta
+                </Link>
               )}
-              {turno.estado === "ATENDIDO" && (
+              {(turno.estado === "RESERVADO" || turno.estado === "CONFIRMADO") && (
+                <BotonAusente
+                  inicio={turno.inicio}
+                  deshabilitado={procesando === turno.id}
+                  onClick={() => handleAusente(turno.id)}
+                />
+              )}
+              {turno.estado === "ATENDIDO" && veParteClinica && (
                 <>
                   <Link to={`/turnos/${turno.id}/consulta`} state={{ turno }} className="btn btn-secondary btn-sm">
                     <ClipboardText size={16} aria-hidden="true" /> Ver consulta
@@ -206,5 +214,25 @@ export function AgendaMedicoPage() {
         ))}
       </ul>
     </main>
+  );
+}
+
+/**
+ * "Marcar ausente" recién se habilita pasada la tolerancia desde la hora del turno: antes de eso el
+ * paciente puede estar llegando tarde y el backend de todos modos lo rechaza. Se muestra el motivo en
+ * vez de esconder el botón, para que no parezca que falta.
+ */
+function BotonAusente({ inicio, deshabilitado, onClick }: { inicio: string; deshabilitado: boolean; onClick: () => void }) {
+  const habilitado = pasoLaTolerancia(inicio);
+  return (
+    <button
+      type="button"
+      className="btn btn-ghost btn-sm"
+      disabled={deshabilitado || !habilitado}
+      title={habilitado ? undefined : `Se habilita ${TOLERANCIA_AUSENCIA_MINUTOS} minutos después de la hora del turno`}
+      onClick={onClick}
+    >
+      <UserCircleMinus size={16} aria-hidden="true" /> Marcar ausente
+    </button>
   );
 }

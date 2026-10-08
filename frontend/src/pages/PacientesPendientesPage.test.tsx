@@ -23,8 +23,8 @@ function errorApi(status: number, mensaje: string) {
   return new AxiosError("x", "ERR_BAD_REQUEST", undefined, undefined, { status, data: { error: mensaje } } as AxiosResponse);
 }
 
-function montar() {
-  renderConSesion(<PacientesPendientesPage />, { usuario: usuario("ADMIN"), ruta: "/pacientes/pendientes", path: "/pacientes/pendientes" });
+function montar(rol: "ADMIN" | "RECEPCIONISTA" = "ADMIN") {
+  renderConSesion(<PacientesPendientesPage />, { usuario: usuario(rol), ruta: "/pacientes/pendientes", path: "/pacientes/pendientes" });
 }
 
 describe("PacientesPendientesPage", () => {
@@ -59,6 +59,22 @@ describe("PacientesPendientesPage", () => {
     expect(screen.getByText("20/5/1990", { exact: false })).toBeInTheDocument();
     expect(screen.getByText("ana@clinica.test")).toBeInTheDocument();
     expect(screen.getByText(/11-5555-0000/)).toBeInTheDocument();
+  });
+
+  it("la recepción puede verificar, pero desactivar cuentas es del admin", async () => {
+    vi.mocked(pacientesApi.pacientesPendientes).mockResolvedValue([paciente()]);
+    montar("RECEPCIONISTA");
+
+    expect(await screen.findByRole("button", { name: /Verificar identidad/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Desactivar cuenta/ })).not.toBeInTheDocument();
+    expect(screen.getByText(/avisale al administrador/)).toBeInTheDocument();
+  });
+
+  it("el admin sí ve desactivar cuenta", async () => {
+    vi.mocked(pacientesApi.pacientesPendientes).mockResolvedValue([paciente()]);
+    montar("ADMIN");
+
+    expect(await screen.findByRole("button", { name: /Desactivar cuenta/ })).toBeInTheDocument();
   });
 
   it("verificar llama a la API con el paciente y recarga la lista", async () => {

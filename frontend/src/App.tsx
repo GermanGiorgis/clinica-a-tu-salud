@@ -17,6 +17,7 @@ import { HistorialPacientePage } from "./pages/HistorialPacientePage";
 import { MetricasPage } from "./pages/MetricasPage";
 import { PacientesPendientesPage } from "./pages/PacientesPendientesPage";
 import { AuditoriaPage } from "./pages/AuditoriaPage";
+import { DiasNoLaborablesPage } from "./pages/DiasNoLaborablesPage";
 import "./App.css";
 
 export default function App() {
@@ -41,7 +42,7 @@ export default function App() {
           <Route
             path="/agenda"
             element={
-              <ProtectedRoute rolesPermitidos={["MEDICO", "ADMIN"]}>
+              <ProtectedRoute rolesPermitidos={["MEDICO", "RECEPCIONISTA", "ADMIN"]}>
                 <AgendaMedicoPage />
               </ProtectedRoute>
             }
@@ -97,8 +98,16 @@ export default function App() {
           <Route
             path="/pacientes/pendientes"
             element={
-              <ProtectedRoute rolesPermitidos={["ADMIN"]}>
+              <ProtectedRoute rolesPermitidos={["RECEPCIONISTA", "ADMIN"]}>
                 <PacientesPendientesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dias-no-laborables"
+            element={
+              <ProtectedRoute rolesPermitidos={["RECEPCIONISTA", "ADMIN"]}>
+                <DiasNoLaborablesPage />
               </ProtectedRoute>
             }
           />

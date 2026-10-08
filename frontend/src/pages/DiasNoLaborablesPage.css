@@ -1,0 +1,114 @@
+.dias__intro {
+  color: var(--color-muted-foreground);
+  margin: 0 0 var(--space-lg);
+}
+
+.dias__form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: var(--space-md);
+  align-items: end;
+}
+
+.dias__form label {
+  margin: 0;
+}
+
+.dias__ancho {
+  grid-column: span 2;
+}
+
+@media (max-width: 560px) {
+  .dias__ancho {
+    grid-column: auto;
+  }
+}
+
+.dias__aviso {
+  background: var(--color-warning-bg);
+  color: #92400e;
+  border: 1px solid #fcd34d;
+  border-radius: var(--radius-md);
+  padding: 0.7rem 1rem;
+  font-size: 0.9rem;
+  margin: var(--space-md) 0;
+}
+
+.dias__lista,
+.dias__turnos {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-md) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.dias__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.dias__datos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.9rem;
+}
+
+.dias__datos strong {
+  font-size: 1rem;
+}
+
+.dias__datos span {
+  color: var(--color-muted-foreground);
+}
+
+.dias__alcance {
+  font-style: italic;
+}
+
+.dias__acciones {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.dias__afectados {
+  margin-top: var(--space-lg);
+}
+
+.dias__advertencia {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #92400e;
+  margin: 0 0 var(--space-sm);
+}
+
+.dias__turnos li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  font-size: 0.9rem;
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.dias__turnos li span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--color-muted-foreground);
+}
+
+.dias__cancelar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  margin-top: var(--space-md);
+}
