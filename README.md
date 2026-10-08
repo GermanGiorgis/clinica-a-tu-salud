@@ -8,7 +8,7 @@ personal administrativo coordina el día a día de la clínica.
 reserva de turnos, atención clínica (consulta, diagnóstico, receta,
 historial), cobertura (obra social y afiliación) y complementos (estudios,
 encuesta de satisfacción y facturación simplificada), un panel de métricas para
-el admin, una identidad visual propia y tests automáticos en el backend y en
+el admin, un rol de recepción para el mostrador, feriados y ausencias cargados por anticipado, una identidad visual propia y tests automáticos en el backend y en
 el frontend, con integración continua en GitHub Actions. Pasó por una auditoría
 de QA y seguridad cuyos hallazgos críticos están corregidos (ver
 [Seguridad](#seguridad)); lo que sigue pendiente figura en
@@ -30,7 +30,15 @@ interfaz web. No reutiliza código del trabajo original, solo la idea del domini
 |---|---|
 | Paciente | Busca médicos por especialidad o por patología, reserva y cancela sus turnos, consulta su historial y recetas |
 | Médico | Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta, y consulta el historial de los pacientes que tienen un turno con él (ver [Seguridad](#seguridad)) |
+| Recepción | Atiende el mostrador: ve la agenda de todos los médicos, reserva a nombre de un paciente por DNI, confirma, cancela y marca ausente, verifica la identidad de los pacientes y carga feriados y ausencias. **No accede a historias clínicas** |
 | Admin | Administra usuarios y catálogos, gestiona la agenda de cualquier médico igual que el propio médico, verifica la identidad de los pacientes que se registran, desactiva cuentas, ve el registro de accesos a historias clínicas y el panel de métricas |
+
+## Reglas de la agenda
+
+- **Un paciente puede tener hasta 2 turnos pendientes a la vez.** Para reservar otro tiene que atenderse o cancelar uno.
+- **Tolerancia de 20 minutos:** a un paciente se lo puede dar por ausente recién 20 minutos después de la hora del turno.
+- **Feriados y ausencias** se cargan por anticipado (pantalla "Feriados y ausencias", para recepción y admin): para toda la clínica o para un médico. Ese día no se ofrecen ni aceptan reservas. Si ya había turnos, no se cancelan solos: se listan con el teléfono del paciente para avisarles, y después se cancelan en bloque. Los feriados de Mendoza no vienen cargados porque cambian cada año (puentes, días no laborables): los carga el personal.
+- **Zona horaria:** `America/Argentina/Mendoza` por defecto.
 
 ## Stack
 
@@ -77,7 +85,7 @@ cd backend
 En el primer arranque, y solo si todavía no existe ningún admin, el backend crea
 uno. Con el archivo local copiado del ejemplo (que activa `SEED_DEMO_ADMIN`) es
 una cuenta **solo de demostración**: `admin@clinica.test` / `admin1234`. Desde ahí
-se dan de alta médicos, catálogos y horarios. Esa cuenta no existe a menos que se
+se dan de alta médicos, recepcionistas, catálogos y horarios (por la API: `POST /api/usuarios` con `"rol": "RECEPCIONISTA"`). Esa cuenta no existe a menos que se
 active explícitamente: en un entorno real se definen `ADMIN_EMAIL` y `ADMIN_PASSWORD`
 (ver [Seguridad](#seguridad)).
 
@@ -103,8 +111,8 @@ No usa H2 a propósito: las reglas que impiden reservar dos veces el mismo horar
 | Tipo | Qué cubre |
 |---|---|
 | Unitarios de servicios (Mockito) | Reglas de negocio y permisos de cada servicio: reserva y disponibilidad (por intervalos, con la hora de la clínica), cancelación con anticipación mínima, estados del turno, cambios de horario con turnos reservados, consulta/receta/estudios, encuesta, facturación, cobertura, historial y su auditoría, verificación de identidad, límite de intentos de login, primer admin, métricas y los catálogos |
-| Integración HTTP (MockMvc + Postgres real) | Filtro JWT, `SecurityConfig` (qué es público, qué exige login y qué exige rol), formato de errores de la API, login/registro, política de contraseñas, el flujo de reserva completo, los escenarios de ataque (leer un historial ajeno, suplantar un DNI, fuerza bruta, cuentas desactivadas) y las consultas de agregación de las métricas |
-| Concurrencia real (hilos y commits de verdad) | Dos reservas simultáneas del mismo turno o del mismo paciente, cancelar mientras el médico marca ausente, doble clic en facturar y registros simultáneos con el mismo email: ninguna carrera deja la agenda inconsistente ni termina en un 500 |
+| Integración HTTP (MockMvc + Postgres real) | Filtro JWT, `SecurityConfig` (qué es público, qué exige login y qué exige rol), formato de errores de la API, login/registro, política de contraseñas, el flujo de reserva completo, los escenarios de ataque (leer un historial ajeno, suplantar un DNI, fuerza bruta, cuentas desactivadas), lo que la recepción puede y no puede hacer, feriados y ausencias de punta a punta y las consultas de agregación de las métricas |
+| Concurrencia real (hilos y commits de verdad) | Dos reservas simultáneas del mismo turno o del mismo paciente, cinco reservas a la vez del mismo paciente (siempre terminan en exactamente 2 turnos), cancelar mientras el médico marca ausente, doble clic en facturar y registros simultáneos con el mismo email: ninguna carrera deja la agenda inconsistente ni termina en un 500 |
 | Consultas SQL | Que un listado haga las mismas consultas con 2 filas que con 15 (sin N+1), medido con las estadísticas de Hibernate |
 | Esquema (`@DataJpaTest` + Postgres real) | Que las entidades coincidan con las migraciones y que la base rechace turnos que se solapan |
 
@@ -115,7 +123,7 @@ cd frontend
 npm test
 ```
 
-Cubre la sesión (login, registro, logout y recuperación al recargar), el interceptor que manda el token, qué ve cada rol en el menú, qué rol puede entrar a cada ruta, y el comportamiento de las pantallas principales: reserva de turnos, mis turnos, agenda del médico, historial, métricas y búsqueda de médicos por patología. Las llamadas a la API se simulan.
+Cubre la sesión (login, registro, logout y recuperación al recargar), el interceptor que manda el token, qué ve cada rol en el menú (incluida la recepción), qué rol puede entrar a cada ruta, y el comportamiento de las pantallas principales: reserva de turnos, mis turnos, agenda del médico y de la recepción, la tolerancia para marcar ausente, feriados y ausencias, historial, métricas y búsqueda de médicos por patología. Las llamadas a la API se simulan.
 
 Además se verifica el tipado con `npx tsc -b` y el lint con `npm run lint`.
 
@@ -154,7 +162,7 @@ encontró. Lo que quedó:
 | `JWT_SECRET` | Secreto para firmar los tokens (largo y aleatorio) | Sí: sin él el backend no arranca |
 | `ADMIN_EMAIL` y `ADMIN_PASSWORD` | Primer usuario administrador (la contraseña tiene que cumplir la política y no se escribe en el log) | Sí, la primera vez |
 | `CORS_ALLOWED_ORIGIN` | Origen del frontend | Sí, si no es `http://localhost:5176` |
-| `ZONA_HORARIA` | Zona de la clínica | No (por defecto `America/Argentina/Buenos_Aires`) |
+| `ZONA_HORARIA` | Zona de la clínica | No (por defecto `America/Argentina/Mendoza`) |
 | `SEED_DEMO_ADMIN` | Crea el admin de demostración | **No activar fuera de tu máquina** |
 
 ## Limitaciones conocidas
@@ -165,14 +173,16 @@ Lo que la auditoría marcó y sigue pendiente, dicho sin maquillaje:
   "ese email ya existe" permite averiguar si una dirección tiene cuenta (se mitiga con el límite
   de altas por IP, pero no se elimina). Resolverlo bien necesita enviar correos.
 - **Sin reprogramación ni avisos.** Reprogramar es cancelar y volver a reservar, y si un médico
-  cancela el paciente no se entera: no hay mails ni SMS. Tampoco hay cancelación masiva por
-  ausencia de un médico.
+  cancela el paciente no se entera: no hay mails ni SMS. Cuando una ausencia o un feriado afecta
+  turnos ya reservados, el sistema los lista con el teléfono y permite cancelarlos en bloque, pero
+  avisarles sigue siendo una llamada de la persona que atiende el mostrador.
 - **Los turnos vencidos no se cierran solos.** Un turno `RESERVADO` o `CONFIRMADO` del pasado
-  queda así hasta que alguien lo resuelva (el médico puede verlo ahora desde el filtro "Día" de la
-  agenda), y eso sesga el ausentismo de las métricas.
-- **Sin rol de recepción.** Quien atienda el mostrador tiene que ser `ADMIN`, y un admin ve todos
-  los historiales (con registro de acceso, pero los ve). Un rol intermedio con agenda y sin acceso
-  clínico sería lo correcto.
+  queda así hasta que alguien lo marque ausente (se puede pasados 20 minutos, esté o no confirmado;
+  la agenda los muestra con el filtro "Día"). No se cierran automáticamente a propósito: un médico
+  puede haber atendido sin cargar la consulta, y marcarlo ausente sería falso. Mientras tanto
+  sesgan el ausentismo de las métricas.
+- **Los feriados hay que cargarlos a mano.** No hay un calendario oficial cargado: cambian cada
+  año, y los de Mendoza incluyen fechas provinciales.
 - **Un médico puede reservar y cargar consultas a nombre de cualquier paciente verificado.** Es
   lo que hace falta para trabajar en un mostrador, y queda auditado (cada turno guarda quién lo
   creó), pero no hay un control previo.

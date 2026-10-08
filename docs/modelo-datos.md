@@ -53,12 +53,14 @@ erDiagram
     FACTURA ||--|{ ITEM_FACTURA : "detalla"
     USUARIO ||--o{ ACCESO_HISTORIAL : "accede"
     PACIENTE ||--o{ ACCESO_HISTORIAL : "es consultado en"
+    MEDICO |o--o{ DIA_NO_LABORABLE : "se ausenta en"
+    USUARIO ||--o{ DIA_NO_LABORABLE : "carga"
 
     USUARIO {
         bigint id PK
         string email UK
         string password_hash
-        string rol "PACIENTE, MEDICO, ADMIN"
+        string rol "PACIENTE, MEDICO, RECEPCIONISTA, ADMIN"
         string nombre
         string apellido
         string telefono
@@ -194,6 +196,15 @@ erDiagram
         text resultado
         timestamp cargado_en
     }
+    DIA_NO_LABORABLE {
+        bigint id PK
+        date desde
+        date hasta "inclusive"
+        string descripcion
+        bigint medico_id FK "nulo = toda la clinica"
+        bigint creado_por FK
+        timestamp creado_en
+    }
     ENCUESTA {
         bigint id PK
         bigint turno_id FK, UK
@@ -216,8 +227,14 @@ erDiagram
     }
 ```
 
-`ADMIN` no tiene tabla propia: es un valor de `USUARIO.rol` y no guarda datos
-específicos de su rol.
+`RECEPCIONISTA` y `ADMIN` no tienen tabla propia: son valores de `USUARIO.rol` y
+no guardan datos específicos de su rol.
+
+`DIA_NO_LABORABLE` es un rango de fechas inclusivo (`desde`, `hasta`). Con
+`medico_id` nulo vale para toda la clínica (feriado, cierre); con un médico,
+solo para su agenda (licencia, enfermedad). Los feriados no se inventan en el
+código: los carga el personal por anticipado, porque los de cada provincia
+cambian de un año a otro (feriados puente, días no laborables).
 
 `PATOLOGIA` es un catálogo que edita el admin: cada síntoma/patología apunta a
 una `ESPECIALIDAD`. Un paciente que no sabe a qué especialista ir elige "qué
@@ -260,6 +277,7 @@ stateDiagram-v2
     RESERVADO --> CANCELADO : cancela
     CONFIRMADO --> ATENDIDO : el médico carga la consulta
     CONFIRMADO --> AUSENTE : el paciente no se presenta
+    RESERVADO --> AUSENTE : nunca confirmó y no se presenta
     CONFIRMADO --> CANCELADO : cancela
     ATENDIDO --> [*]
     AUSENTE --> [*]
@@ -268,10 +286,10 @@ stateDiagram-v2
 
 | Transición | Quién puede |
 |---|---|
-| Reservar | Paciente (para sí mismo); médico o admin, a nombre de un paciente (por DNI) |
-| Confirmar | Paciente (el propio); médico (de su agenda); admin (cualquiera) |
-| Cancelar | Paciente (con anticipación mínima); médico (de su agenda) y admin (cualquiera), sin esa restricción |
-| Marcar ausente | Médico (de su agenda), admin |
+| Reservar | Paciente (para sí mismo); médico, recepción o admin, a nombre de un paciente (por DNI) |
+| Confirmar | Paciente (el propio); médico (de su agenda); recepción y admin (cualquiera) |
+| Cancelar | Paciente (con anticipación mínima); médico (de su agenda), recepción y admin (cualquiera), sin esa restricción |
+| Marcar ausente | Médico (de su agenda), recepción, admin; pasados 20 minutos de la hora del turno (regla 19) |
 | Atendido | Médico del turno, al cargar la consulta |
 
 ## Reglas de negocio
@@ -313,6 +331,27 @@ stateDiagram-v2
    traduce a su `Especialidad` y filtra los médicos que la ejercen. Es solo
    un filtro de ayuda: el paciente igual puede elegir cualquier médico
    directamente, sin pasar por una patología.
+18. **Feriados y ausencias.** Mientras exista un `DiaNoLaborable` que cubra una
+   fecha (de toda la clínica o del médico), no se ofrecen horarios ese día y
+   reservar se rechaza. A los pacientes se les explica por qué en el caso de
+   un feriado de la clínica, pero **no el motivo** de la ausencia de un
+   médico (puede ser una enfermedad): solo "el médico no atiende ese día".
+   Cargar un período **no cancela** los turnos que ya hubiera: se listan
+   (con el teléfono del paciente, porque el sistema no envía avisos) y quien
+   atiende el mostrador los cancela en bloque, con un motivo, después de
+   avisarles. Solo tocan turnos pendientes que todavía no empezaron. Un
+   período no puede ser anterior a hoy ni durar más de un año.
+19. **Tolerancia.** A un paciente se lo puede dar por ausente recién 20 minutos
+   después de la hora de su turno. Vale tanto para un turno confirmado como
+   para uno que nunca se confirmó (así los turnos vencidos pueden cerrarse).
+   No se cierran solos: lo hace una persona, para no marcar ausente a quien
+   en realidad fue atendido y no se cargó la consulta.
+20. **Tope de turnos.** Un paciente no puede tener más de 2 turnos pendientes
+   (`RESERVADO` o `CONFIRMADO` que todavía no terminaron) a la vez; el tope
+   rige también cuando reserva el personal a su nombre. Para que dos
+   pedidos simultáneos no se lo salteen, la reserva toma el candado de la
+   fila del paciente antes de contar. Los turnos ya atendidos, ausentes,
+   cancelados o vencidos no cuentan.
 
 **Atención clínica**
 
@@ -337,8 +376,16 @@ stateDiagram-v2
     cancelado o ausente no habilita nada.
 12. El **admin** gestiona usuarios, catálogos, y puede gestionar la agenda y
     los turnos de cualquier médico — las mismas acciones que tiene el médico
-    sobre la suya. También verifica identidades, activa o desactiva cuentas
-    y consulta la auditoría y las métricas.
+    sobre la suya. También verifica identidades, activa o desactiva cuentas,
+    carga feriados y ausencias, y consulta la auditoría y las métricas.
+12b. La **recepción** atiende el mostrador: ve la agenda de cualquier médico,
+    reserva a nombre de un paciente por DNI, confirma, cancela y marca
+    ausente, verifica identidades y carga feriados y ausencias. **No accede a
+    historias clínicas, consultas, facturas, métricas, auditoría ni a la
+    administración de usuarios**, ni puede desactivar cuentas (si una
+    identidad no cierra, no la verifica y avisa al admin). Es el rol que
+    corresponde al mostrador: antes había que dar `ADMIN`, que ve todas las
+    historias clínicas.
 
 **Identidad, cuentas y auditoría**
 
@@ -369,7 +416,7 @@ stateDiagram-v2
 |---|---|
 | Todas las referencias como `Long` (`pacienteId`, `medicoId`...) | Claves foráneas reales con `@ManyToOne` |
 | `EstadoTurno` como tabla con CRUD | Enum con máquina de estados |
-| `Asistente` como entidad, con su propio CRUD | Eliminado: hacía lo mismo que `Admin`, que ya puede gestionar todo el sistema de turnos |
+| `Asistente` como entidad, con su propio CRUD | Primero eliminado (hacía lo mismo que `Admin`); después vuelve como rol `RECEPCIONISTA`, esta vez con permisos propios y más acotados: el mostrador, sin acceso clínico |
 | `HistorialPaciente` como tabla de eventos | Se calcula desde consultas, recetas y estudios |
 | `Medico.especialidad` como `String` | Relación N:M con `Especialidad` |
 | `Turno` con `fecha` y `hora` separadas | `inicio` y `fin` como `LocalDateTime` |
@@ -382,7 +429,7 @@ stateDiagram-v2
 
 ## Fuera de alcance por ahora
 
-Bloqueos de agenda (vacaciones, licencias), recordatorios por mail, subida de
-archivos de resultados, integraciones con sistemas de facturación oficiales.
-Ver también las limitaciones conocidas del README (reprogramación y avisos,
-cierre automático de turnos vencidos, rol de recepción, verificación de email).
+Recordatorios por mail, subida de archivos de resultados, integraciones con
+sistemas de facturación oficiales. Ver también las limitaciones conocidas del
+README (reprogramación y avisos, cierre automático de turnos vencidos,
+verificación de email).
