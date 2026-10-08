@@ -6,6 +6,7 @@
   padding: 0.9rem 1.5rem;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
+  border-top: 3px solid var(--color-primary);
   border-bottom: 1px solid var(--color-border);
   position: sticky;
   top: 0;
@@ -21,7 +22,7 @@
   font-weight: 700;
   font-size: 1.15rem;
   text-decoration: none;
-  color: var(--color-foreground);
+  color: var(--color-primary);
 }
 
 .header__nav {
@@ -81,5 +82,5 @@
 /* El enlace "Registrarme" es un botón: sin esto, `.header__nav a` le pisa el color del texto. */
 .header__nav a.btn-primary,
 .header__nav a.btn-primary:hover {
-  color: var(--color-on-accent);
+  color: var(--color-on-primary);
 }

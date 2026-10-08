@@ -19,24 +19,30 @@
 
 | Role | Hex | CSS Variable |
 |------|-----|--------------|
-| Primary | `#2563EB` | `--color-primary` |
+| Primary (verde inglés) | `#004225` | `--color-primary` |
+| Primary hover | `#00331D` | `--color-primary-hover` |
 | On Primary | `#FFFFFF` | `--color-on-primary` |
-| Secondary | `#3B82F6` | `--color-secondary` |
-| On Secondary | `#000000` | `--color-on-secondary` |
-| Accent/CTA | `#059669` | `--color-accent` |
-| On Accent/CTA | `#000000` | `--color-on-accent` |
-| Background | `#F8FAFC` | `--color-background` |
-| Foreground | `#0F172A` | `--color-foreground` |
+| Accent (verde medio, detalles y gráficos) | `#2F7D57` | `--color-accent` |
+| Accent hover | `#256646` | `--color-accent-hover` |
+| Accent soft (fondo de etiquetas verdes) | `#E3F0E9` | `--color-accent-soft` |
+| On Accent | `#FFFFFF` | `--color-on-accent` |
+| Background | `#FFFFFF` | `--color-background` |
+| Foreground | `#12251C` | `--color-foreground` |
 | Card | `#FFFFFF` | `--color-card` |
-| Card Foreground | `#0F172A` | `--color-card-foreground` |
-| Muted | `#F1F5FD` | `--color-muted` |
-| Muted Foreground | `#475569` | `--color-muted-foreground` |
-| Border | `#E4ECFC` | `--color-border` |
+| Card Foreground | `#12251C` | `--color-card-foreground` |
+| Muted | `#F2F7F4` | `--color-muted` |
+| Muted Foreground | `#4A5F55` | `--color-muted-foreground` |
+| Border | `#DBE7E0` | `--color-border` |
 | Destructive | `#DC2626` | `--color-destructive` |
 | On Destructive | `#FFFFFF` | `--color-on-destructive` |
-| Ring | `#2563EB` | `--color-ring` |
+| Warning / Warning bg | `#D97706` / `#FEF3C7` | `--color-warning`, `--color-warning-bg` |
+| Ring | `#004225` | `--color-ring` |
 
-**Color Notes:** Calendar blue + event green
+**Color Notes:** Blanco y verde inglés (British racing green). El verde profundo es el color de marca y de
+toda acción principal; el verde medio solo acompaña (iconos de listas, segunda serie de un gráfico). El rojo y el
+ámbar se reservan para errores y avisos: no se usan como color de marca. Contraste del primario sobre blanco: más de 11:1.
+Estados del turno: reservado = verde muy pálido con borde, confirmado = verde suave, atendido = verde profundo lleno,
+ausente = ámbar, cancelado = rojo.
 
 ### Typography
 
@@ -82,7 +88,7 @@
 ```css
 /* Primary Button */
 .btn-primary {
-  background: #059669;
+  background: #004225;
   color: white;
   padding: 12px 24px;
   border-radius: 8px;
@@ -99,8 +105,8 @@
 /* Secondary Button */
 .btn-secondary {
   background: transparent;
-  color: #2563EB;
-  border: 2px solid #2563EB;
+  color: #004225;
+  border: 2px solid #004225;
   padding: 12px 24px;
   border-radius: 8px;
   font-weight: 600;
@@ -113,7 +119,7 @@
 
 ```css
 .card {
-  background: #F8FAFC;
+  background: #FFFFFF;
   border-radius: 12px;
   padding: 24px;
   box-shadow: var(--shadow-md);
@@ -132,16 +138,16 @@
 ```css
 .input {
   padding: 12px 16px;
-  border: 1px solid #E2E8F0;
+  border: 1px solid #DBE7E0;
   border-radius: 8px;
   font-size: 16px;
   transition: border-color 200ms ease;
 }
 
 .input:focus {
-  border-color: #2563EB;
+  border-color: #004225;
   outline: none;
-  box-shadow: 0 0 0 3px #2563EB20;
+  box-shadow: 0 0 0 3px rgba(0, 66, 37, 0.18);
 }
 ```
 

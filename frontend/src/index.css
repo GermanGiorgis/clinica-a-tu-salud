@@ -3,12 +3,15 @@
 :root {
   color-scheme: light;
 
-  /* Paleta: azul calendario + verde de acción (ver design-system/clinica/MASTER.md) */
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
+  /* Paleta: blanco y verde inglés (British racing green, #004225). Ver design-system/clinica/MASTER.md.
+     El primario es el verde profundo (botones, enlaces, marca); el acento es un verde más claro para
+     detalles y gráficos; --color-accent-soft es el fondo de las etiquetas verdes. */
+  --color-primary: #004225;
+  --color-primary-hover: #00331d;
   --color-on-primary: #ffffff;
-  --color-accent: #059669;
-  --color-accent-hover: #047857;
+  --color-accent: #2f7d57;
+  --color-accent-hover: #256646;
+  --color-accent-soft: #e3f0e9;
   --color-on-accent: #ffffff;
   --color-destructive: #dc2626;
   --color-destructive-hover: #b91c1c;
@@ -16,14 +19,14 @@
   --color-warning: #d97706;
   --color-warning-bg: #fef3c7;
 
-  --color-background: #f8fafc;
-  --color-foreground: #0f172a;
+  --color-background: #ffffff;
+  --color-foreground: #12251c;
   --color-card: #ffffff;
-  --color-card-foreground: #0f172a;
-  --color-muted: #f1f5fd;
-  --color-muted-foreground: #475569;
-  --color-border: #e2e8f0;
-  --color-ring: #2563eb;
+  --color-card-foreground: #12251c;
+  --color-muted: #f2f7f4;
+  --color-muted-foreground: #4a5f55;
+  --color-border: #dbe7e0;
+  --color-ring: #004225;
 
   --font-heading: "Figtree", system-ui, sans-serif;
   --font-body: "Noto Sans", system-ui, sans-serif;
@@ -39,9 +42,9 @@
   --radius-md: 8px;
   --radius-lg: 12px;
 
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 6px rgba(15, 23, 42, 0.08);
-  --shadow-lg: 0 10px 20px rgba(15, 23, 42, 0.1);
+  --shadow-sm: 0 1px 2px rgba(6, 40, 24, 0.07);
+  --shadow-md: 0 4px 6px rgba(6, 40, 24, 0.09);
+  --shadow-lg: 0 10px 20px rgba(6, 40, 24, 0.12);
 
   font-family: var(--font-body);
   line-height: 1.5;
@@ -167,12 +170,12 @@ button {
 }
 
 .btn-primary {
-  background: var(--color-accent);
-  color: var(--color-on-accent);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--color-accent-hover);
+  background: var(--color-primary-hover);
 }
 
 .btn-secondary {
@@ -243,7 +246,7 @@ select:focus,
 textarea:focus {
   outline: none;
   border-color: var(--color-ring);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(0, 66, 37, 0.18);
 }
 
 label {
@@ -296,17 +299,18 @@ label {
 
 .badge--reservado {
   background: var(--color-muted);
-  color: var(--color-primary);
+  color: var(--color-accent-hover);
+  box-shadow: inset 0 0 0 1px var(--color-border);
 }
 
 .badge--confirmado {
-  background: #d1fae5;
-  color: var(--color-accent-hover);
+  background: var(--color-accent-soft);
+  color: var(--color-primary);
 }
 
 .badge--atendido {
-  background: #e2e8f0;
-  color: var(--color-muted-foreground);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
 }
 
 .badge--ausente {
