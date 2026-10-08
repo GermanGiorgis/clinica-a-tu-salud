@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** Todo acá requiere rol ADMIN (ver SecurityConfig). */
+/** Todo acá requiere rol ADMIN o RECEPCIONISTA (ver SecurityConfig). */
 @RestController
 @RequestMapping("/api/pacientes")
 @RequiredArgsConstructor

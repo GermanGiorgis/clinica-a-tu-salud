@@ -36,6 +36,17 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
     List<Turno> findByMedicoIdAndEstadoInAndInicioGreaterThanEqual(
             Long medicoId, Collection<EstadoTurno> estados, LocalDateTime desde);
 
+    /** Turnos pendientes (según {@code estados}) que empiezan en [desde, hasta): los afectados por un feriado. */
+    @EntityGraph(attributePaths = {"medico.usuario", "paciente.usuario", "consultorio"})
+    List<Turno> findByEstadoInAndInicioGreaterThanEqualAndInicioLessThanOrderByInicioAsc(
+            Collection<EstadoTurno> estados, LocalDateTime desde, LocalDateTime hasta);
+    @EntityGraph(attributePaths = {"medico.usuario", "paciente.usuario", "consultorio"})
+    List<Turno> findByMedicoIdAndEstadoInAndInicioGreaterThanEqualAndInicioLessThanOrderByInicioAsc(
+            Long medicoId, Collection<EstadoTurno> estados, LocalDateTime desde, LocalDateTime hasta);
+
+    /** Cuántos turnos pendientes (que todavía no terminaron) tiene un paciente: tope de reservas simultáneas. */
+    long countByPacienteIdAndEstadoInAndFinAfter(Long pacienteId, Collection<EstadoTurno> estados, LocalDateTime ahora);
+
     // Agregados para el panel de métricas: los calcula la base, no se cargan los turnos.
     @Query("select new com.germanggiorgis.clinica.dto.ConteoPorEstado(t.estado, count(t)) "
             + "from Turno t group by t.estado")

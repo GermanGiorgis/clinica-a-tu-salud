@@ -51,6 +51,11 @@ class AgendaConcurrenciaIntegrationTest extends BaseIntegracionConDatos {
         return LocalDateTime.of(FECHA, LocalTime.of(8, 0).plusMinutes(30L * indice));
     }
 
+    /** Pasa a ATENDIDO los turnos pendientes del médico, para que no cuenten contra el tope de turnos por paciente. */
+    private void cerrarPendientesDe(Medico medico) {
+        jdbc.update("UPDATE turno SET estado = 'ATENDIDO' WHERE medico_id = ? AND estado IN ('RESERVADO', 'CONFIRMADO')", medico.getId());
+    }
+
     // --- la reserva simultánea ---
 
     @Test
@@ -64,6 +69,7 @@ class AgendaConcurrenciaIntegrationTest extends BaseIntegracionConDatos {
             int[] resultado = enParalelo(reservar(pacienteA, medico, slot(i)), reservar(pacienteB, medico, slot(i)));
 
             assertThat(ordenados(resultado)).as("ronda %d", i).containsExactly(201, 409);
+            cerrarPendientesDe(medico);   // si no, tras 2 rondas el tope de 2 turnos pendientes frenaría a los pacientes
         }
         long activos = turnoRepository.findByMedicoIdAndInicioBetween(medico.getId(), FECHA.atStartOfDay(), FECHA.plusDays(1).atStartOfDay())
                 .stream().filter(t -> t.getEstado() != EstadoTurno.CANCELADO).count();
@@ -82,6 +88,8 @@ class AgendaConcurrenciaIntegrationTest extends BaseIntegracionConDatos {
             int[] resultado = enParalelo(reservar(paciente.getUsuario(), medicoA, slot(i)), reservar(paciente.getUsuario(), medicoB, slot(i)));
 
             assertThat(ordenados(resultado)).as("ronda %d", i).containsExactly(201, 409);
+            cerrarPendientesDe(medicoA);
+            cerrarPendientesDe(medicoB);
         }
         long activos = turnoRepository.findByPacienteIdOrderByInicioDesc(paciente.getId()).stream()
                 .filter(t -> t.getEstado() != EstadoTurno.CANCELADO).count();

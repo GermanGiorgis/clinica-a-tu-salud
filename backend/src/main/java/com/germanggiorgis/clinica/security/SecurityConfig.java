@@ -90,7 +90,9 @@ public class SecurityConfig {
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
                                 "/api/medicos/**", "/api/patologias/**", "/api/medicamentos/**",
                                 "/api/obras-sociales/**", "/api/estudios/**").permitAll()
-                        .requestMatchers("/api/usuarios/**", "/api/metricas/**", "/api/pacientes/**", "/api/auditoria/**").hasRole("ADMIN")
+                        .requestMatchers("/api/usuarios/**", "/api/metricas/**", "/api/auditoria/**").hasRole("ADMIN")
+                        // Mostrador: verificar la identidad de los pacientes y cargar feriados/ausencias.
+                        .requestMatchers("/api/pacientes/**", "/api/dias-no-laborables/**").hasAnyRole("ADMIN", "RECEPCIONISTA")
                         .requestMatchers(HttpMethod.POST, "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
                                 "/api/patologias/**", "/api/medicamentos/**", "/api/obras-sociales/**",

@@ -74,6 +74,8 @@ abstract class BaseIntegracionConDatos {
         String pacientes = "(SELECT p.id FROM paciente p JOIN usuario u ON u.id = p.usuario_id WHERE u.email LIKE '%" + DOMINIO + "')";
         String turnos = "(SELECT id FROM turno WHERE medico_id IN " + medicos + " OR paciente_id IN " + pacientes + ")";
         jdbc.update("DELETE FROM acceso_historial WHERE usuario_id IN (SELECT id FROM usuario WHERE email LIKE '%" + DOMINIO + "') OR paciente_id IN " + pacientes);
+        jdbc.update("DELETE FROM dia_no_laborable WHERE descripcion LIKE '" + PREFIJO + "%' OR medico_id IN " + medicos
+                + " OR creado_por IN (SELECT id FROM usuario WHERE email LIKE '%" + DOMINIO + "')");
         jdbc.update("DELETE FROM item_factura WHERE factura_id IN (SELECT id FROM factura WHERE turno_id IN " + turnos + ")");
         jdbc.update("DELETE FROM factura WHERE turno_id IN " + turnos);
         jdbc.update("DELETE FROM encuesta WHERE turno_id IN " + turnos);
@@ -162,12 +164,17 @@ abstract class BaseIntegracionConDatos {
 
     /** Lanza las dos llamadas a la vez (con una barrera) y devuelve sus dos estados HTTP, en el mismo orden que los pedidos. */
     protected int[] enParalelo(MockHttpServletRequestBuilder a, MockHttpServletRequestBuilder b) throws Exception {
-        ExecutorService pool = Executors.newFixedThreadPool(2);
+        return enParalelo(List.of(a, b));
+    }
+
+    /** Igual que arriba pero con tantos pedidos como se quiera, todos largados a la vez. */
+    protected int[] enParalelo(List<MockHttpServletRequestBuilder> pedidos) throws Exception {
+        ExecutorService pool = Executors.newFixedThreadPool(pedidos.size());
         try {
-            CountDownLatch listos = new CountDownLatch(2);
+            CountDownLatch listos = new CountDownLatch(pedidos.size());
             CountDownLatch largada = new CountDownLatch(1);
             List<Future<Integer>> futuros = new ArrayList<>();
-            for (MockHttpServletRequestBuilder request : List.of(a, b)) {
+            for (MockHttpServletRequestBuilder request : pedidos) {
                 Callable<Integer> tarea = () -> {
                     listos.countDown();
                     largada.await();
@@ -177,7 +184,11 @@ abstract class BaseIntegracionConDatos {
             }
             listos.await();
             largada.countDown();
-            return new int[]{futuros.get(0).get(), futuros.get(1).get()};
+            int[] estados = new int[pedidos.size()];
+            for (int i = 0; i < estados.length; i++) {
+                estados[i] = futuros.get(i).get();
+            }
+            return estados;
         } finally {
             pool.shutdown();
         }

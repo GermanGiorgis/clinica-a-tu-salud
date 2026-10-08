@@ -12,7 +12,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * Verificación de identidad (solo ADMIN, lo exige SecurityConfig). Quien se autorregistra queda
+ * Verificación de identidad (ADMIN o RECEPCIONISTA, lo exige SecurityConfig). Quien se autorregistra queda
  * "sin verificar" hasta que el personal de la clínica compara, en persona, el DNI y los datos de la
  * cuenta con el documento. Recién entonces se puede reservar a su nombre por DNI y un médico puede
  * ver su historial. Ver V8 y AuthService.registrarPaciente.

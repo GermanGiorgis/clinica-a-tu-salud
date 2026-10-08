@@ -74,7 +74,7 @@ public class UsuarioService {
         Long perfilId = switch (request.rol()) {
             case PACIENTE -> crearPerfilPaciente(usuario, request);
             case MEDICO -> crearPerfilMedico(usuario, request);
-            case ADMIN -> null;
+            case RECEPCIONISTA, ADMIN -> null;
         };
 
         return UsuarioResponse.from(usuario, perfilId);

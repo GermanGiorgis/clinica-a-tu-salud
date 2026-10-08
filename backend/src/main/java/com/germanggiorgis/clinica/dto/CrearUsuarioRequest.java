@@ -14,7 +14,7 @@ import java.util.List;
  * Lo usa un ADMIN para crear cualquier tipo de cuenta. Según el rol hacen
  * falta campos distintos (ver UsuarioService): PACIENTE pide dni y
  * fechaNacimiento; MEDICO pide matricula y, opcionalmente, especialidadIds;
- * ADMIN no tiene datos propios.
+ * RECEPCIONISTA y ADMIN no tienen datos propios.
  */
 public record CrearUsuarioRequest(
         @NotNull Rol rol,

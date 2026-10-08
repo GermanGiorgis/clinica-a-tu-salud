@@ -6,6 +6,7 @@ import com.germanggiorgis.clinica.dto.DisponibilidadResponse;
 import com.germanggiorgis.clinica.dto.TurnoResponse;
 import com.germanggiorgis.clinica.model.Afiliacion;
 import com.germanggiorgis.clinica.model.Consultorio;
+import com.germanggiorgis.clinica.model.DiaNoLaborable;
 import com.germanggiorgis.clinica.model.EstadoTurno;
 import com.germanggiorgis.clinica.model.HorarioAtencion;
 import com.germanggiorgis.clinica.model.Medico;
@@ -16,6 +17,7 @@ import com.germanggiorgis.clinica.model.Rol;
 import com.germanggiorgis.clinica.model.Turno;
 import com.germanggiorgis.clinica.model.Usuario;
 import com.germanggiorgis.clinica.repository.AfiliacionRepository;
+import com.germanggiorgis.clinica.repository.DiaNoLaborableRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
 import com.germanggiorgis.clinica.repository.MotivoCancelacionRepository;
@@ -47,6 +49,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -72,6 +76,8 @@ class TurnoServiceTest {
     private MotivoCancelacionRepository motivoCancelacionRepository;
     @Mock
     private AfiliacionRepository afiliacionRepository;
+    @Mock
+    private DiaNoLaborableRepository diaNoLaborableRepository;
     @Mock
     private UsuarioContextService usuarioContextService;
     /** Reloj real por defecto; los tests de zona horaria lo fijan con {@link #ahoraEs}. */
@@ -826,11 +832,11 @@ class TurnoServiceTest {
     }
 
     @Test
-    void marcarAusente_lo_permite_al_medico_del_turno_confirmado() {
+    void marcarAusente_lo_permite_al_medico_del_turno_confirmado_pasada_la_tolerancia() {
         Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
         Medico medico = medico(1L, usuarioMedico);
         Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico, consultorio(1L),
-                LocalDateTime.now().minusMinutes(5), EstadoTurno.CONFIRMADO);
+                LocalDateTime.now().minusMinutes(25), EstadoTurno.CONFIRMADO);
 
         when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
         when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
@@ -840,14 +846,244 @@ class TurnoServiceTest {
     }
 
     @Test
-    void marcarAusente_rechaza_un_turno_que_no_esta_confirmado() {
+    void marcarAusente_rechaza_un_turno_que_ya_no_esta_pendiente() {
         Usuario usuarioAdmin = usuario(1L, Rol.ADMIN);
         Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuario(3L, Rol.MEDICO)), consultorio(1L),
-                LocalDateTime.now().plusDays(1), EstadoTurno.RESERVADO);
+                LocalDateTime.now().minusHours(3), EstadoTurno.ATENDIDO);
 
         when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioAdmin);
         when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
 
         assertStatus(() -> turnoService.marcarAusente(5L), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void marcarAusente_no_deja_darlo_por_ausente_antes_de_los_20_minutos_de_tolerancia() {
+        Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
+        Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuarioMedico), consultorio(1L),
+                LocalDateTime.now().minusMinutes(15), EstadoTurno.CONFIRMADO);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+
+        assertStatus(() -> turnoService.marcarAusente(5L), HttpStatus.BAD_REQUEST);
+        verify(turnoRepository, never()).save(any());
+    }
+
+    @Test
+    void marcarAusente_tampoco_deja_antes_de_la_hora_del_turno() {
+        Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
+        Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuarioMedico), consultorio(1L),
+                LocalDateTime.now().plusHours(1), EstadoTurno.CONFIRMADO);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+
+        assertStatus(() -> turnoService.marcarAusente(5L), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void marcarAusente_la_tolerancia_se_cumple_exactamente_a_los_20_minutos() {
+        Usuario usuarioMedico = usuario(1L, Rol.MEDICO);
+        Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuarioMedico), consultorio(1L),
+                LocalDateTime.of(2030, 3, 4, 10, 0), EstadoTurno.CONFIRMADO);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioMedico);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+        when(turnoRepository.save(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        ahoraEs("2030-03-04T13:19:59Z", BUENOS_AIRES);   // 10:19:59 en la clinica
+        assertStatus(() -> turnoService.marcarAusente(5L), HttpStatus.BAD_REQUEST);
+
+        ahoraEs("2030-03-04T13:20:00Z", BUENOS_AIRES);   // 10:20:00
+        assertThat(turnoService.marcarAusente(5L).estado()).isEqualTo(EstadoTurno.AUSENTE);
+    }
+
+    @Test
+    void marcarAusente_tambien_cierra_un_turno_que_nunca_se_confirmo() {
+        Usuario recepcion = usuario(1L, Rol.RECEPCIONISTA);
+        Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuario(3L, Rol.MEDICO)), consultorio(1L),
+                LocalDateTime.now().minusHours(2), EstadoTurno.RESERVADO);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+        when(turnoRepository.save(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(turnoService.marcarAusente(5L).estado()).isEqualTo(EstadoTurno.AUSENTE);
+    }
+
+    // --- recepcionista ---
+
+    @Test
+    void agenda_recepcion_ve_la_de_cualquier_medico_pero_tiene_que_indicar_cual() {
+        Usuario recepcion = usuario(9L, Rol.RECEPCIONISTA);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
+        when(turnoRepository.findByMedicoIdAndInicioGreaterThanEqualOrderByInicioAsc(eq(3L), any())).thenReturn(List.of());
+
+        assertThat(turnoService.agenda(3L, null)).isEmpty();
+        assertStatus(() -> turnoService.agenda(null, null), HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    void confirmar_y_cancelar_lo_permite_la_recepcion_sin_importar_la_anticipacion() {
+        Usuario recepcion = usuario(9L, Rol.RECEPCIONISTA);
+        Turno turno = turno(5L, paciente(1L, usuario(2L, Rol.PACIENTE)), medico(1L, usuario(3L, Rol.MEDICO)), consultorio(1L),
+                LocalDateTime.now().plusMinutes(30), EstadoTurno.RESERVADO);
+        MotivoCancelacion motivo = MotivoCancelacion.builder().id(7L).nombre("Motivo").build();
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
+        when(turnoRepository.findById(5L)).thenReturn(Optional.of(turno));
+        when(motivoCancelacionRepository.findById(7L)).thenReturn(Optional.of(motivo));
+        when(turnoRepository.save(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertThat(turnoService.confirmar(5L).estado()).isEqualTo(EstadoTurno.CONFIRMADO);
+        assertThat(turnoService.cancelar(5L, new CancelarTurnoRequest(7L)).estado()).isEqualTo(EstadoTurno.CANCELADO);
+    }
+
+    @Test
+    void crear_la_recepcion_reserva_a_nombre_de_un_paciente_verificado_por_dni() {
+        Usuario recepcion = usuario(9L, Rol.RECEPCIONISTA);
+        Paciente paciente = paciente(1L, usuario(2L, Rol.PACIENTE));
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        HorarioAtencion horario = horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
+
+        when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
+        when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("DNI1")).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of(horario));
+        when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        TurnoResponse respuesta = turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, "DNI1", null));
+
+        assertThat(respuesta.pacienteId()).isEqualTo(1L);
+    }
+
+    // --- tope de turnos pendientes por paciente (regla 20) ---
+
+    private void prepararReservaDeUnPaciente(Usuario usuarioPaciente, Paciente paciente, Medico medico, LocalDate fecha) {
+        HorarioAtencion horario = horario(medico, consultorio(1L), fecha.getDayOfWeek(), LocalTime.of(9, 0), LocalTime.of(12, 0), 30);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(pacienteRepository.findByUsuarioId(usuarioPaciente.getId())).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(medico.getId())).thenReturn(Optional.of(medico));
+        lenient().when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(medico.getId(), fecha.getDayOfWeek()))
+                .thenReturn(List.of(horario));
+        lenient().when(turnoRepository.saveAndFlush(any(Turno.class))).thenAnswer(inv -> inv.getArgument(0));
+    }
+
+    @Test
+    void crear_rechaza_con_409_si_el_paciente_ya_tiene_dos_turnos_pendientes() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        prepararReservaDeUnPaciente(usuarioPaciente, paciente, medico(1L, usuario(3L, Rol.MEDICO)), fecha);
+        when(turnoRepository.countByPacienteIdAndEstadoInAndFinAfter(eq(1L), eq(List.of(EstadoTurno.RESERVADO, EstadoTurno.CONFIRMADO)), any()))
+                .thenReturn(2L);
+
+        assertStatus(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null)),
+                HttpStatus.CONFLICT);
+        verify(turnoRepository, never()).saveAndFlush(any());
+    }
+
+    @Test
+    void crear_con_un_turno_pendiente_todavia_deja_reservar_el_segundo() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        prepararReservaDeUnPaciente(usuarioPaciente, paciente, medico(1L, usuario(3L, Rol.MEDICO)), fecha);
+        when(turnoRepository.countByPacienteIdAndEstadoInAndFinAfter(eq(1L), any(), any())).thenReturn(1L);
+
+        TurnoResponse respuesta = turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null));
+
+        assertThat(respuesta.estado()).isEqualTo(EstadoTurno.RESERVADO);
+    }
+
+    @Test
+    void crear_toma_el_candado_del_paciente_antes_de_contar_para_que_dos_pedidos_a_la_vez_no_se_pasen_del_tope() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        prepararReservaDeUnPaciente(usuarioPaciente, paciente, medico(1L, usuario(3L, Rol.MEDICO)), fecha);
+
+        turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null));
+
+        var orden = inOrder(pacienteRepository, turnoRepository);
+        orden.verify(pacienteRepository).bloquearPorId(1L);
+        orden.verify(turnoRepository).countByPacienteIdAndEstadoInAndFinAfter(eq(1L), any(), any());
+    }
+
+    @Test
+    void crear_el_mensaje_del_tope_habla_del_paciente_cuando_reserva_el_personal() {
+        Usuario recepcion = usuario(9L, Rol.RECEPCIONISTA);
+        Paciente paciente = paciente(1L, usuario(2L, Rol.PACIENTE));
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(recepcion);
+        when(pacienteRepository.findByDniAndIdentidadVerificadaTrue("DNI1")).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(turnoRepository.countByPacienteIdAndEstadoInAndFinAfter(eq(1L), any(), any())).thenReturn(2L);
+
+        assertThatThrownBy(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, "DNI1", null)))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Ese paciente ya tiene 2 turnos pendientes");
+    }
+
+    // --- feriados y ausencias (regla 18) ---
+
+    private DiaNoLaborable cierre(Medico medicoOMasNull, String descripcion) {
+        return DiaNoLaborable.builder().id(1L).desde(LocalDate.now()).hasta(LocalDate.now().plusDays(3))
+                .descripcion(descripcion).medico(medicoOMasNull).build();
+    }
+
+    @Test
+    void disponibilidad_un_feriado_de_la_clinica_no_ofrece_horarios_y_dice_por_que() {
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(diaNoLaborableRepository.cubrenFecha(1L, fecha)).thenReturn(List.of(cierre(null, "Día de la Vendimia")));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fecha);
+
+        assertThat(respuesta.horariosLibres()).isEmpty();
+        assertThat(respuesta.aviso()).contains("Día de la Vendimia");
+        verify(horarioAtencionRepository, never()).findByMedicoIdAndDiaSemana(any(), any());
+    }
+
+    @Test
+    void disponibilidad_la_ausencia_de_un_medico_no_cuenta_el_motivo_a_los_pacientes() {
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(diaNoLaborableRepository.cubrenFecha(1L, fecha)).thenReturn(List.of(cierre(medico, "Operación de rodilla")));
+
+        DisponibilidadResponse respuesta = turnoService.disponibilidad(1L, fecha);
+
+        assertThat(respuesta.horariosLibres()).isEmpty();
+        assertThat(respuesta.aviso()).isEqualTo("El médico no atiende ese día").doesNotContain("rodilla");
+    }
+
+    @Test
+    void disponibilidad_un_dia_normal_no_trae_aviso() {
+        Medico medico = medico(1L, usuario(1L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(horarioAtencionRepository.findByMedicoIdAndDiaSemana(1L, fecha.getDayOfWeek())).thenReturn(List.of());
+
+        assertThat(turnoService.disponibilidad(1L, fecha).aviso()).isNull();
+    }
+
+    @Test
+    void crear_rechaza_reservar_un_dia_cerrado_aunque_el_horario_exista() {
+        Usuario usuarioPaciente = usuario(2L, Rol.PACIENTE);
+        Paciente paciente = paciente(1L, usuarioPaciente);
+        Medico medico = medico(1L, usuario(3L, Rol.MEDICO));
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(usuarioContextService.getUsuarioActual()).thenReturn(usuarioPaciente);
+        when(pacienteRepository.findByUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        when(medicoRepository.findById(1L)).thenReturn(Optional.of(medico));
+        when(diaNoLaborableRepository.cubrenFecha(1L, fecha)).thenReturn(List.of(cierre(null, "Feriado")));
+
+        assertStatus(() -> turnoService.crear(new CrearTurnoRequest(1L, LocalDateTime.of(fecha, LocalTime.of(9, 0)), null, null, null)),
+                HttpStatus.BAD_REQUEST);
+        verify(turnoRepository, never()).saveAndFlush(any());
     }
 }

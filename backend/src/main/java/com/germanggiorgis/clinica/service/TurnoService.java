@@ -13,7 +13,9 @@ import com.germanggiorgis.clinica.model.Paciente;
 import com.germanggiorgis.clinica.model.Rol;
 import com.germanggiorgis.clinica.model.Turno;
 import com.germanggiorgis.clinica.model.Usuario;
+import com.germanggiorgis.clinica.model.DiaNoLaborable;
 import com.germanggiorgis.clinica.repository.AfiliacionRepository;
+import com.germanggiorgis.clinica.repository.DiaNoLaborableRepository;
 import com.germanggiorgis.clinica.repository.HorarioAtencionRepository;
 import com.germanggiorgis.clinica.repository.MedicoRepository;
 import com.germanggiorgis.clinica.repository.MotivoCancelacionRepository;
@@ -34,6 +36,7 @@ import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * El corazón del proyecto: calcula horarios libres a partir de
@@ -50,6 +53,11 @@ public class TurnoService {
 
     private static final int VENTANA_RESERVA_DIAS = 60;
     private static final int ANTICIPACION_MINIMA_CANCELACION_HORAS = 2;
+    /** Cuánto se espera a un paciente antes de poder darlo por ausente (regla 19). */
+    static final int TOLERANCIA_AUSENCIA_MINUTOS = 20;
+    /** Turnos pendientes que un paciente puede tener a la vez (regla 20). */
+    static final int MAXIMO_TURNOS_PENDIENTES = 2;
+    private static final List<EstadoTurno> PENDIENTES = List.of(EstadoTurno.RESERVADO, EstadoTurno.CONFIRMADO);
 
     private final TurnoRepository turnoRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
@@ -57,6 +65,7 @@ public class TurnoService {
     private final PacienteRepository pacienteRepository;
     private final MotivoCancelacionRepository motivoCancelacionRepository;
     private final AfiliacionRepository afiliacionRepository;
+    private final DiaNoLaborableRepository diaNoLaborableRepository;
     private final UsuarioContextService usuarioContextService;
     private final Clock clock;
 
@@ -72,6 +81,11 @@ public class TurnoService {
         // el POST /api/turnos rechazaría con "tanta anticipación".
         if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
             return new DisponibilidadResponse(fecha, List.of());
+        }
+
+        Optional<String> cierre = avisoDeCierre(medicoId, fecha);
+        if (cierre.isPresent()) {
+            return new DisponibilidadResponse(fecha, List.of(), cierre.get());
         }
 
         List<HorarioAtencion> horarios = horariosVigentes(medicoId, fecha);
@@ -121,6 +135,12 @@ public class TurnoService {
         if (fecha.isAfter(LocalDate.now(clock).plusDays(VENTANA_RESERVA_DIAS))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No se puede reservar con tanta anticipación");
         }
+
+        if (avisoDeCierre(medico.getId(), fecha).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El médico no atiende ese día");
+        }
+
+        controlarTopeDeTurnosPendientes(usuarioActual, paciente);
 
         HorarioAtencion horario = horariosVigentes(medico.getId(), fecha).stream()
                 .filter(h -> encajaEnHorario(inicio.toLocalTime(), h))
@@ -181,7 +201,7 @@ public class TurnoService {
 
     /**
      * Agenda de un médico. El propio médico ve la suya (no puede pedir la de
-     * otro); un admin puede ver la de cualquiera, pero tiene que indicar cuál.
+     * otro); el admin y la recepción pueden ver la de cualquiera, pero tienen que indicar cuál.
      */
     @Transactional(readOnly = true)
     public List<TurnoResponse> agenda(Long medicoIdParam, LocalDate fecha) {
@@ -194,13 +214,13 @@ public class TurnoService {
                 throw new ResponseStatusException(HttpStatus.FORBIDDEN, "No podés ver la agenda de otro médico");
             }
             medicoId = propio.getId();
-        } else if (usuarioActual.getRol() == Rol.ADMIN) {
+        } else if (usuarioActual.getRol() == Rol.ADMIN || usuarioActual.getRol() == Rol.RECEPCIONISTA) {
             if (medicoIdParam == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Indicá qué médico querés ver");
             }
             medicoId = medicoIdParam;
         } else {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un médico o un admin puede ver una agenda");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo un médico o el personal de la clínica puede ver una agenda");
         }
 
         List<Turno> turnos = fecha != null
@@ -257,27 +277,32 @@ public class TurnoService {
         Turno turno = obtener(turnoId);
 
         if (usuarioActual.getRol() == Rol.PACIENTE || !puedeGestionar(usuarioActual, turno)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el médico del turno o un admin puede marcar esto");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Solo el médico del turno o el personal de la clínica puede marcar esto");
         }
-        if (turno.getEstado() != EstadoTurno.CONFIRMADO) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se puede marcar ausente un turno confirmado");
+        // También un turno que nunca se confirmó: si el paciente no vino, hay que poder cerrarlo.
+        if (turno.getEstado() != EstadoTurno.RESERVADO && turno.getEstado() != EstadoTurno.CONFIRMADO) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo se puede marcar ausente un turno reservado o confirmado");
+        }
+        if (LocalDateTime.now(clock).isBefore(turno.getInicio().plusMinutes(TOLERANCIA_AUSENCIA_MINUTOS))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Hay que esperar " + TOLERANCIA_AUSENCIA_MINUTOS + " minutos desde la hora del turno antes de marcar la ausencia");
         }
 
         turno.setEstado(EstadoTurno.AUSENTE);
         return TurnoResponse.from(turnoRepository.save(turno));
     }
 
-    /** Dueño del turno (paciente), médico asignado a él, o cualquier admin. */
+    /** Dueño del turno (paciente), médico asignado a él, o el personal de la clínica (admin y recepción). */
     private boolean puedeGestionar(Usuario usuarioActual, Turno turno) {
         return switch (usuarioActual.getRol()) {
-            case ADMIN -> true;
+            case ADMIN, RECEPCIONISTA -> true;
             case MEDICO -> turno.getMedico().getUsuario().getId().equals(usuarioActual.getId());
             case PACIENTE -> turno.getPaciente().getUsuario().getId().equals(usuarioActual.getId());
         };
     }
 
     /**
-     * El paciente reserva para sí mismo; un médico o admin reserva a nombre
+     * El paciente reserva para sí mismo; un médico, la recepción o un admin reservan a nombre
      * de otra persona indicando su DNI (como pedirlo en mostrador).
      */
     private Paciente resolverPacienteParaReserva(Usuario usuarioActual, String pacienteDni) {
@@ -305,6 +330,34 @@ public class TurnoService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Esa afiliación no es del paciente");
         }
         return afiliacion;
+    }
+
+    /**
+     * Tope de turnos pendientes por paciente. Se toma antes el candado de su fila: sin él, dos
+     * reservas simultáneas cuentan las dos "1 pendiente" y el paciente termina con tres.
+     */
+    private void controlarTopeDeTurnosPendientes(Usuario usuarioActual, Paciente paciente) {
+        pacienteRepository.bloquearPorId(paciente.getId());
+        long pendientes = turnoRepository.countByPacienteIdAndEstadoInAndFinAfter(
+                paciente.getId(), PENDIENTES, LocalDateTime.now(clock));
+        if (pendientes >= MAXIMO_TURNOS_PENDIENTES) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, usuarioActual.getRol() == Rol.PACIENTE
+                    ? "Ya tenés " + MAXIMO_TURNOS_PENDIENTES + " turnos pendientes, que es el máximo. Cancelá uno o esperá a atenderte para reservar otro"
+                    : "Ese paciente ya tiene " + MAXIMO_TURNOS_PENDIENTES + " turnos pendientes, que es el máximo. Hay que cancelar uno antes de reservar otro");
+        }
+    }
+
+    /**
+     * Si ese día está cerrado para el médico (feriado de la clínica o ausencia suya), el texto que
+     * se le muestra al paciente. De una ausencia no se cuenta el motivo: puede ser una enfermedad.
+     */
+    private Optional<String> avisoDeCierre(Long medicoId, LocalDate fecha) {
+        List<DiaNoLaborable> cierres = diaNoLaborableRepository.cubrenFecha(medicoId, fecha);
+        return cierres.stream()
+                .filter(c -> c.getMedico() == null)
+                .findFirst()
+                .map(c -> "La clínica no atiende ese día: " + c.getDescripcion())
+                .or(() -> cierres.isEmpty() ? Optional.empty() : Optional.of("El médico no atiende ese día"));
     }
 
     private boolean seSolapaConAlguno(List<Turno> turnos, LocalDateTime inicio, LocalDateTime fin) {

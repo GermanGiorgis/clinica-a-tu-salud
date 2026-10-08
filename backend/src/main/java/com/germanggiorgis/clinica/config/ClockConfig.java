@@ -25,7 +25,7 @@ public class ClockConfig {
 
     private final ZoneId zona;
 
-    public ClockConfig(@Value("${clinica.zona-horaria:America/Argentina/Buenos_Aires}") String zona) {
+    public ClockConfig(@Value("${clinica.zona-horaria:America/Argentina/Mendoza}") String zona) {
         this.zona = ZoneId.of(zona);
     }
 
