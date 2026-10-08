@@ -275,6 +275,8 @@ stateDiagram-v2
     [*] --> RESERVADO : paciente, médico o admin reserva
     RESERVADO --> CONFIRMADO : confirma
     RESERVADO --> CANCELADO : cancela
+    RESERVADO --> RESERVADO : reprograma (otro horario, mismo médico)
+    CONFIRMADO --> RESERVADO : reprograma (hay que confirmar de nuevo)
     CONFIRMADO --> ATENDIDO : el médico carga la consulta
     CONFIRMADO --> AUSENTE : el paciente no se presenta
     RESERVADO --> AUSENTE : nunca confirmó y no se presenta
@@ -289,6 +291,7 @@ stateDiagram-v2
 | Reservar | Paciente (para sí mismo); médico, recepción o admin, a nombre de un paciente (por DNI) |
 | Confirmar | Paciente (el propio); médico (de su agenda); recepción y admin (cualquiera) |
 | Cancelar | Paciente (con anticipación mínima); médico (de su agenda), recepción y admin (cualquiera), sin esa restricción |
+| Reprogramar | Paciente (el propio, con la misma anticipación mínima que para cancelar); médico (de su agenda), recepción y admin, sin esa restricción (regla 21) |
 | Marcar ausente | Médico (de su agenda), recepción, admin; pasados 20 minutos de la hora del turno (regla 19) |
 | Atendido | Médico del turno, al cargar la consulta |
 
@@ -353,10 +356,28 @@ stateDiagram-v2
    fila del paciente antes de contar. Los turnos ya atendidos, ausentes,
    cancelados o vencidos no cuentan.
 
+21. **Reprogramar** es mover el mismo turno a otro horario del mismo médico, sin
+   cancelarlo: no se pierde el lugar si otra persona se lleva el horario nuevo
+   en el medio, y no cuenta contra el tope de la regla 20. Valen las mismas
+   validaciones que al reservar (futuro, ventana de 60 días, día abierto,
+   grilla del médico, sin pisarse con otro turno del médico ni del paciente),
+   salvo que el turno no se choca consigo mismo. El turno vuelve a
+   `RESERVADO` y se confirma de nuevo. Para cambiar de médico hay que
+   cancelar y reservar. Dos reprogramaciones simultáneas al mismo horario
+   dejan una sola ganadora (restricciones `EXCLUDE` de la base).
+22. **Médico dado de baja.** Si el admin desactiva la cuenta de un médico, deja
+   de verse en las listas públicas, no se puede abrir su ficha, su
+   disponibilidad queda vacía y no se le puede reservar ni reprogramar. El
+   personal de mostrador sí lo sigue viendo (marcado como dado de baja)
+   porque puede tener turnos pendientes que hay que cancelar o mover. La baja
+   no cancela turnos por sí sola.
+
 **Atención clínica**
 
 8. La `Consulta` solo existe para turnos confirmados y es 1:1 con el turno.
-   Crearla pasa el turno a `ATENDIDO`. Solo el médico del turno (o un admin)
+   Crearla pasa el turno a `ATENDIDO`, y no se puede antes del día del
+   turno: no se atiende a quien todavía no vino (el mismo día sí, aunque
+   todavía no sea la hora). Solo el médico del turno (o un admin)
    la carga; no se edita después. Una `Receta` cuelga de una Consulta ya
    cargada y la emite esa misma persona.
 9. El historial del paciente **no es una tabla**: se calcula a partir de sus
@@ -389,7 +410,8 @@ stateDiagram-v2
 
 **Identidad, cuentas y auditoría**
 
-13. Cualquiera puede registrarse como paciente con cualquier DNI, así que el
+13. El DNI son entre 6 y 9 números, sin puntos ni espacios (el frontend los quita
+    al escribir o pegar). Cualquiera puede registrarse como paciente con cualquier DNI, así que el
     DNI **no se valida contra otros pacientes al registrarse** (avisar "ese
     DNI ya existe" revelaría quién se atiende en la clínica). La cuenta nace
     con `identidad_verificada = false`. El personal compara en persona los
@@ -431,5 +453,5 @@ stateDiagram-v2
 
 Recordatorios por mail, subida de archivos de resultados, integraciones con
 sistemas de facturación oficiales. Ver también las limitaciones conocidas del
-README (reprogramación y avisos, cierre automático de turnos vencidos,
+README (avisos al paciente, cierre automático de turnos vencidos,
 verificación de email).

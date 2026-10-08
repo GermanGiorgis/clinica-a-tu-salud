@@ -31,12 +31,15 @@ interfaz web. No reutiliza código del trabajo original, solo la idea del domini
 | Paciente | Elige una especialidad (traumatología, dermatología, ginecología...) y ve los médicos que la atienden, o dice qué le pasa y el sistema lo lleva a la especialidad; reserva y cancela sus turnos, consulta su historial y recetas |
 | Médico | Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta, y consulta el historial de los pacientes que tienen un turno con él (ver [Seguridad](#seguridad)) |
 | Recepción | Atiende el mostrador: ve la agenda de todos los médicos, reserva a nombre de un paciente por DNI, confirma, cancela y marca ausente, verifica la identidad de los pacientes y carga feriados y ausencias. **No accede a historias clínicas** |
-| Admin | Administra usuarios y catálogos, gestiona la agenda de cualquier médico igual que el propio médico, verifica la identidad de los pacientes que se registran, desactiva cuentas, ve el registro de accesos a historias clínicas y el panel de métricas |
+| Admin | Administra usuarios (alta, baja y reactivación) y catálogos, gestiona la agenda de cualquier médico igual que el propio médico, verifica la identidad de los pacientes que se registran, desactiva cuentas, ve el registro de accesos a historias clínicas y el panel de métricas |
 
 ## Reglas de la agenda
 
 - **Se reserva por especialidad.** "Especialidades" es el punto de partida: 36 especialidades de una clínica (las carga la migración `V10`, el admin puede agregar más), cada una con la cantidad de médicos que tiene; al abrirla se listan sus médicos. Hay un buscador por nombre (sin importar tildes) y un selector de síntomas que lleva a la especialidad que corresponde.
 - **Un paciente puede tener hasta 2 turnos pendientes a la vez.** Para reservar otro tiene que atenderse o cancelar uno.
+- **Reprogramar** (postergar) un turno es moverlo a otro horario del mismo médico sin cancelarlo: no se pierde el lugar y no cuenta contra el tope de 2. El paciente puede hacerlo hasta 2 horas antes; el médico, la recepción y el admin, siempre. Vuelve a quedar "Reservado" y hay que confirmarlo de nuevo.
+- **Un médico dado de baja** deja de verse y de poder reservarse; el mostrador lo sigue viendo para mover o cancelar los turnos que le quedaron.
+- **A un turno no se lo puede atender antes del día en que es.**
 - **Tolerancia de 20 minutos:** a un paciente se lo puede dar por ausente recién 20 minutos después de la hora del turno.
 - **Feriados y ausencias** se cargan por anticipado (pantalla "Feriados y ausencias", para recepción y admin): para toda la clínica o para un médico. Ese día no se ofrecen ni aceptan reservas. Si ya había turnos, no se cancelan solos: se listan con el teléfono del paciente para avisarles, y después se cancelan en bloque. Los feriados de Mendoza no vienen cargados porque cambian cada año (puentes, días no laborables): los carga el personal.
 - **Zona horaria:** `America/Argentina/Mendoza` por defecto.
@@ -86,7 +89,7 @@ cd backend
 En el primer arranque, y solo si todavía no existe ningún admin, el backend crea
 uno. Con el archivo local copiado del ejemplo (que activa `SEED_DEMO_ADMIN`) es
 una cuenta **solo de demostración**: `admin@clinica.test` / `admin1234`. Desde ahí
-se dan de alta médicos, recepcionistas, catálogos y horarios (por la API: `POST /api/usuarios` con `"rol": "RECEPCIONISTA"`). Esa cuenta no existe a menos que se
+se dan de alta médicos, recepcionistas y pacientes desde la pantalla **Usuarios** (que también da de baja y reactiva cuentas: las cuentas no se borran, porque quedan asociadas a turnos e historias clínicas). Los catálogos y los horarios se cargan por la API. Esa cuenta no existe a menos que se
 active explícitamente: en un entorno real se definen `ADMIN_EMAIL` y `ADMIN_PASSWORD`
 (ver [Seguridad](#seguridad)).
 
@@ -173,8 +176,8 @@ Lo que la auditoría marcó y sigue pendiente, dicho sin maquillaje:
 - **Sin verificación de email.** Cualquiera puede registrarse con un email ajeno, y el 409 de
   "ese email ya existe" permite averiguar si una dirección tiene cuenta (se mitiga con el límite
   de altas por IP, pero no se elimina). Resolverlo bien necesita enviar correos.
-- **Sin reprogramación ni avisos.** Reprogramar es cancelar y volver a reservar, y si un médico
-  cancela el paciente no se entera: no hay mails ni SMS. Cuando una ausencia o un feriado afecta
+- **Sin avisos al paciente.** Si un médico cancela o mueve un turno, el paciente no se entera: no hay
+  mails ni SMS. Cuando una ausencia o un feriado afecta
   turnos ya reservados, el sistema los lista con el teléfono y permite cancelarlos en bloque, pero
   avisarles sigue siendo una llamada de la persona que atiende el mostrador.
 - **Los turnos vencidos no se cierran solos.** Un turno `RESERVADO` o `CONFIRMADO` del pasado
