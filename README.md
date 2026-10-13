@@ -143,9 +143,16 @@ encontró. Lo que quedó:
   *que no creó él mismo* y la identidad del paciente está verificada: reservar a nombre de un
   paciente por DNI no alcanza. Todo acceso de un médico o un admin queda en un registro que solo se
   agrega, consultable por el admin.
-- **Registro público.** No revela si un DNI o un email pertenece a un paciente, y no deja que
-  alguien se quede con el DNI de otra persona: las cuentas nuevas nacen sin identidad verificada
-  y el personal las verifica comparando con el documento.
+- **Registro público.** No revela si un DNI pertenece a un paciente, y no deja que alguien se quede
+  con el DNI de otra persona: las cuentas nuevas nacen sin identidad verificada y el personal las
+  verifica comparando con el documento. El email repetido sí se avisa (la persona tiene que saber que
+  ya tiene cuenta), y por eso las altas se limitan por IP.
+- **Errores que se entienden.** El formulario de registro revisa cada dato antes de enviarlo y marca
+  *debajo de ese campo* qué está mal ("al email le falta la terminación del dominio", "la contraseña
+  tiene 8 caracteres y necesita 10"); lo mismo cuando es el servidor quien rechaza un dato (mensajes
+  de validación en castellano, `ValidationMessages.properties`). Si la falla no es de los datos, el
+  mensaje dice cuál es: sin conexión con el servidor, demora, un problema interno con su código, o
+  demasiados intentos.
 - **Contraseñas y fuerza bruta.** Mínimo 10 caracteres y máximo 72 bytes. Tras 5 intentos fallidos
   para un email (o 30 desde una IP) en 15 minutos, el login responde 429 aunque llegue la contraseña
   correcta. Las altas de cuenta se limitan por IP.

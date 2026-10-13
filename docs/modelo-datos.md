@@ -419,6 +419,12 @@ stateDiagram-v2
     a ser único (índice parcial) y es posible reservar a su nombre por DNI y
     que un médico vea su historial. Los pacientes dados de alta por un admin
     nacen verificados.
+13b. Datos de contacto del alta (registro público y alta por el admin): el email tiene que ser
+    completo (`nombre@dominio.ext`, algo que `@Email` solo no exige), el teléfono es opcional y, si
+    está, tiene entre 8 y 15 números con espacios, guiones, paréntesis y `+` como separadores, y la
+    fecha de nacimiento es anterior a hoy y no anterior a 1900 (descarta años mal tipeados). Cada
+    regla devuelve su campo y un mensaje en castellano; el frontend aplica las mismas reglas antes de
+    enviar (`validacionRegistro.ts`), de modo que la persona ve qué corregir sin esperar al servidor.
 14. Cada acceso de un médico o un admin al historial de otra persona queda
     registrado (`acceso_historial`: quién, a quién, cuándo). El registro solo
     se agrega, y el admin lo consulta.

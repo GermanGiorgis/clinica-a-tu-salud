@@ -42,8 +42,33 @@
   gap: var(--space-md);
 }
 
-.auth-form__fila label {
+.auth-form__fila > * {
   flex: 1;
+  min-width: 0;
+}
+
+/* Un campo con su aviso debajo: el aviso dice qué está mal en ESE dato. */
+.auth-form__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.auth-form__campo-error {
+  color: var(--color-destructive);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.auth-form__campo-error a {
+  color: inherit;
+  font-weight: 600;
+}
+
+.auth-form__campo input[aria-invalid="true"] {
+  border-color: var(--color-destructive);
+  background: #fffafa;
 }
 
 .auth-form > p {
