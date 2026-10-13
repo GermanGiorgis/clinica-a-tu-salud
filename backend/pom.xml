@@ -105,6 +105,17 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<!-- application-local.properties también lo leen los tests: sin esto, los profesionales de
+					     demostración se cargarían en la base de pruebas y la ensuciarían. -->
+					<systemPropertyVariables>
+						<clinica.seed.demo-medicos>false</clinica.seed.demo-medicos>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<executions>
 					<execution>

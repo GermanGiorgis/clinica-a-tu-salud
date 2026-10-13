@@ -124,3 +124,7 @@
   font-size: 0.9rem;
   margin: var(--space-md) 0;
 }
+
+.medico-detalle__proximo {
+  margin: var(--space-sm) 0 var(--space-md);
+}

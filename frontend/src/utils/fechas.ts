@@ -6,6 +6,12 @@ export function hoyISO(): string {
   return new Date().toLocaleDateString("sv-SE");
 }
 
+/** El día siguiente a `iso` (YYYY-MM-DD), también en YYYY-MM-DD y sin depender de la zona horaria. */
+export function diaSiguienteISO(iso: string): string {
+  const [anio, mes, dia] = iso.split("-").map(Number);
+  return new Date(Date.UTC(anio, mes - 1, dia + 1)).toISOString().slice(0, 10);
+}
+
 export function ultimoDiaReservableISO(): string {
   const fecha = new Date();
   fecha.setDate(fecha.getDate() + VENTANA_RESERVA_DIAS);

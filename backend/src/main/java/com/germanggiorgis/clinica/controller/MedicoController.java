@@ -1,6 +1,7 @@
 package com.germanggiorgis.clinica.controller;
 
 import com.germanggiorgis.clinica.dto.DisponibilidadResponse;
+import com.germanggiorgis.clinica.dto.ProximoDiaResponse;
 import com.germanggiorgis.clinica.dto.MedicoResponse;
 import com.germanggiorgis.clinica.service.MedicoService;
 import com.germanggiorgis.clinica.service.TurnoService;
@@ -42,5 +43,14 @@ public class MedicoController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha
     ) {
         return turnoService.disponibilidad(id, fecha);
+    }
+
+    /** El primer día con horarios libres desde {@code desde} (hoy si no se indica); {@code fecha} null si no hay ninguno. */
+    @GetMapping("/{id}/proximo-dia-disponible")
+    public ProximoDiaResponse proximoDiaDisponible(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde
+    ) {
+        return new ProximoDiaResponse(turnoService.proximoDiaConHorarios(id, desde).orElse(null));
     }
 }

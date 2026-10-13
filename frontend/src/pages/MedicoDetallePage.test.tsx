@@ -50,6 +50,7 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     vi.resetAllMocks();
     vi.mocked(medicosApi.obtenerMedico).mockResolvedValue(pedro);
     vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: ["09:00:00", "09:30:00"] });
+    vi.mocked(medicosApi.obtenerProximoDia).mockResolvedValue(null);
     vi.mocked(afiliacionesApi.misAfiliaciones).mockResolvedValue([]);
     vi.mocked(turnosApi.crearTurno).mockResolvedValue(turno());
   });
@@ -101,6 +102,69 @@ describe("MedicoDetallePage (reserva de turnos)", () => {
     montar(null);
 
     expect(await screen.findByText("No hay horarios libres ese día.")).toBeInTheDocument();
+  });
+
+  describe("cuando ese día no hay horarios", () => {
+    beforeEach(() => {
+      vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: [] });
+    });
+
+    it("ofrece ir al próximo día con horarios, contado desde el día siguiente al elegido", async () => {
+      vi.mocked(medicosApi.obtenerProximoDia).mockResolvedValue("2099-03-04");
+      montar(null);
+
+      const boton = await screen.findByRole("button", { name: /Ver el próximo día con horarios: .*4 de marzo/ });
+
+      expect(medicosApi.obtenerProximoDia).toHaveBeenCalledWith(7, expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/));
+      expect(boton).toBeInTheDocument();
+    });
+
+    it("al apretarlo muestra ese día y sus horarios", async () => {
+      vi.mocked(medicosApi.obtenerProximoDia).mockResolvedValue("2099-03-04");
+      vi.mocked(medicosApi.obtenerDisponibilidad)
+        .mockResolvedValueOnce({ fecha: "2030-01-10", horariosLibres: [] })
+        .mockResolvedValue({ fecha: "2099-03-04", horariosLibres: ["09:00:00"] });
+      montar(null);
+
+      await userEvent.click(await screen.findByRole("button", { name: /Ver el próximo día con horarios/ }));
+
+      expect(await screen.findByRole("button", { name: "09:00" })).toBeInTheDocument();
+      expect(fechaMostrada()).toBe("2099-03-04");
+      expect(screen.queryByRole("button", { name: /Ver el próximo día/ })).not.toBeInTheDocument();
+    });
+
+    it("también lo ofrece cuando el día está cerrado por un feriado", async () => {
+      vi.mocked(medicosApi.obtenerDisponibilidad).mockResolvedValue({ fecha: "2030-01-10", horariosLibres: [], aviso: "La clínica no atiende ese día: Feriado" });
+      vi.mocked(medicosApi.obtenerProximoDia).mockResolvedValue("2099-03-04");
+      montar(null);
+
+      expect(await screen.findByRole("button", { name: /Ver el próximo día con horarios/ })).toBeInTheDocument();
+      expect(screen.getByText("La clínica no atiende ese día: Feriado")).toBeInTheDocument();
+    });
+
+    it("si no queda ningún día con horarios lo dice", async () => {
+      vi.mocked(medicosApi.obtenerProximoDia).mockResolvedValue(null);
+      montar(null);
+
+      expect(await screen.findByText("Este médico no tiene horarios libres en los próximos días.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Ver el próximo día/ })).not.toBeInTheDocument();
+    });
+
+    it("si la búsqueda del próximo día falla no rompe la página: solo no ofrece el botón", async () => {
+      vi.mocked(medicosApi.obtenerProximoDia).mockRejectedValue(new Error("caído"));
+      montar(null);
+
+      expect(await screen.findByText("No hay horarios libres ese día.")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Ver el próximo día/ })).not.toBeInTheDocument();
+    });
+  });
+
+  it("con horarios libres no busca el próximo día", async () => {
+    montar(null);
+
+    await screen.findByRole("button", { name: "09:00" });
+
+    expect(medicosApi.obtenerProximoDia).not.toHaveBeenCalled();
   });
 
   it("si el día está cerrado (feriado, ausencia) muestra el aviso en lugar de 'no hay horarios'", async () => {

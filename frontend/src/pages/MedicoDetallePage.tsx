@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { CalendarBlank, CheckCircle, Stethoscope } from "@phosphor-icons/react";
-import { obtenerDisponibilidad, obtenerMedico } from "../api/medicos";
+import { obtenerDisponibilidad, obtenerMedico, obtenerProximoDia } from "../api/medicos";
 import { crearTurno } from "../api/turnos";
 import { misAfiliaciones } from "../api/afiliaciones";
 import { useAuth } from "../context/AuthContext";
 import { extraerError } from "../utils/errores";
 import { soloDigitos } from "../utils/dni";
-import { fechaLegible, hoyISO, ultimoDiaReservableISO } from "../utils/fechas";
+import { diaSiguienteISO, fechaLegible, hoyISO, ultimoDiaReservableISO } from "../utils/fechas";
 import { esPersonalDeLaClinica } from "../utils/roles";
 import type { Afiliacion, Medico } from "../types";
 import "./MedicoDetallePage.css";
@@ -25,6 +25,8 @@ export function MedicoDetallePage() {
   const [horarios, setHorarios] = useState<string[] | null>(null);
   /** Si el día está cerrado (feriado, ausencia del médico), por qué: se muestra en lugar de "no hay horarios". */
   const [aviso, setAviso] = useState<string | null>(null);
+  /** Cuando el día elegido no tiene horarios: el primer día siguiente que sí (null = ninguno; undefined = todavía no se sabe). */
+  const [proximoDia, setProximoDia] = useState<string | null | undefined>(undefined);
   const [horarioElegido, setHorarioElegido] = useState<string | null>(null);
   const [motivoConsulta, setMotivoConsulta] = useState("");
   const [pacienteDni, setPacienteDni] = useState("");
@@ -57,6 +59,19 @@ export function MedicoDetallePage() {
       })
       .catch(() => setError("No se pudo calcular la disponibilidad."));
   }, [medicoId, fecha]);
+
+  const sinHorarios = horarios !== null && horarios.length === 0;
+  useEffect(() => {
+    setProximoDia(undefined);
+    if (!sinHorarios) return;
+    let vigente = true;
+    obtenerProximoDia(medicoId, diaSiguienteISO(fecha))
+      .then((dia) => vigente && setProximoDia(dia))
+      .catch(() => {});
+    return () => {
+      vigente = false;
+    };
+  }, [medicoId, fecha, sinHorarios]);
 
   async function reservar() {
     if (!horarioElegido) return;
@@ -129,8 +144,16 @@ export function MedicoDetallePage() {
 
       <h2>Horarios disponibles</h2>
       {horarios === null && <p className="empty-state">Calculando…</p>}
-      {horarios !== null && horarios.length === 0 && (
+      {sinHorarios && (
         <p className={aviso ? "medico-detalle__cerrado" : "empty-state"}>{aviso ?? "No hay horarios libres ese día."}</p>
+      )}
+      {sinHorarios && proximoDia && (
+        <button type="button" className="btn btn-secondary medico-detalle__proximo" onClick={() => setFecha(proximoDia)}>
+          Ver el próximo día con horarios: {fechaLegible(proximoDia)}
+        </button>
+      )}
+      {sinHorarios && proximoDia === null && !aviso && (
+        <p className="empty-state">Este médico no tiene horarios libres en los próximos días.</p>
       )}
       <ul className="medico-detalle__horarios">
         {horarios?.map((h) => (

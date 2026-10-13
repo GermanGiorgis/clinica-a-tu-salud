@@ -16,6 +16,14 @@ export async function obtenerMedico(id: number): Promise<Medico> {
   return data;
 }
 
+/** El primer día con horarios libres desde `desde` (YYYY-MM-DD), o null si no queda ninguno en los próximos 60 días. */
+export async function obtenerProximoDia(medicoId: number, desde: string): Promise<string | null> {
+  const { data } = await apiClient.get<{ fecha: string | null }>(`/api/medicos/${medicoId}/proximo-dia-disponible`, {
+    params: { desde },
+  });
+  return data.fecha;
+}
+
 /** fecha en formato YYYY-MM-DD */
 export async function obtenerDisponibilidad(medicoId: number, fecha: string): Promise<Disponibilidad> {
   const { data } = await apiClient.get<Disponibilidad>(`/api/medicos/${medicoId}/disponibilidad`, {

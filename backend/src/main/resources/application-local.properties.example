@@ -10,3 +10,7 @@ jwt.secret=cambiar-este-secreto-por-uno-random-y-largo
 # arranque si todavía no hay ningún admin. NO activar fuera de tu máquina: en un entorno real se
 # define ADMIN_EMAIL y ADMIN_PASSWORD (ver AdminSeeder).
 clinica.seed.demo-admin=true
+
+# Solo desarrollo local: carga dos profesionales de demostracion por especialidad (con consultorio y horarios), para
+# poder probar la reserva de turnos en cualquier especialidad. Sin contraseña conocida (ver MedicosDeDemostracion).
+clinica.seed.demo-medicos=true

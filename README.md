@@ -35,7 +35,7 @@ interfaz web. No reutiliza código del trabajo original, solo la idea del domini
 
 ## Reglas de la agenda
 
-- **Se reserva por especialidad.** "Especialidades" es el punto de partida: 36 especialidades de una clínica (las carga la migración `V10`, el admin puede agregar más), cada una con la cantidad de médicos que tiene; al abrirla se listan sus médicos. Hay un buscador por nombre (sin importar tildes) y un selector de «¿qué te pasa?» con ~28 síntomas básicos (dolor de cabeza, lunares en la piel, dolor de estómago...) que deja a la vista solo las especialidades que lo atienden (un síntoma puede tener varias: el dolor de cabeza es de neurología o de clínica médica).
+- **Se reserva por especialidad.** "Especialidades" es el punto de partida: 36 especialidades de una clínica (las carga la migración `V10`, el admin puede agregar más), cada una con la cantidad de médicos que tiene; al abrirla se listan sus médicos. Hay un buscador por nombre (sin importar tildes) y un selector de «¿qué te pasa?» con ~28 síntomas básicos (dolor de cabeza, lunares en la piel, dolor de estómago...) que deja a la vista solo las especialidades que lo atienden (un síntoma puede tener varias: el dolor de cabeza es de neurología o de clínica médica). Si el día elegido el médico no atiende, un botón lleva al próximo día con horarios libres.
 - **Un paciente puede tener hasta 2 turnos pendientes a la vez.** Para reservar otro tiene que atenderse o cancelar uno.
 - **Reprogramar** (postergar) un turno es moverlo a otro horario del mismo médico sin cancelarlo: no se pierde el lugar y no cuenta contra el tope de 2. El paciente puede hacerlo hasta 2 horas antes; el médico, la recepción y el admin, siempre. Vuelve a quedar "Reservado" y hay que confirmarlo de nuevo.
 - **Un médico dado de baja** deja de verse y de poder reservarse; el mostrador lo sigue viendo para mover o cancelar los turnos que le quedaron.
@@ -92,6 +92,13 @@ una cuenta **solo de demostración**: `admin@clinica.test` / `admin1234`. Desde 
 se dan de alta médicos, recepcionistas y pacientes desde la pantalla **Usuarios** (que también da de baja y reactiva cuentas: las cuentas no se borran, porque quedan asociadas a turnos e historias clínicas). Los catálogos y los horarios se cargan por la API. Esa cuenta no existe a menos que se
 active explícitamente: en un entorno real se definen `ADMIN_EMAIL` y `ADMIN_PASSWORD`
 (ver [Seguridad](#seguridad)).
+
+El mismo archivo de ejemplo activa también `SEED_DEMO_MEDICOS`: carga **64 profesionales
+inventados**, dos por cada una de las 36 especialidades (uno atiende a la mañana y otro a la tarde,
+tres días por semana, turnos de 30 minutos) y algunos con más de una especialidad, para poder reservar
+turnos en cualquiera de ellas. Sus cuentas no tienen una contraseña conocida (no sirven para iniciar
+sesión; para entrar como médico se crea una cuenta desde **Usuarios**). Es idempotente y, como el admin de
+demostración, es solo para desarrollo local.
 
 **3. Frontend** (puerto 5176)
 
@@ -175,6 +182,7 @@ encontró. Lo que quedó:
 | `CORS_ALLOWED_ORIGIN` | Origen del frontend | Sí, si no es `http://localhost:5176` |
 | `ZONA_HORARIA` | Zona de la clínica | No (por defecto `America/Argentina/Mendoza`) |
 | `SEED_DEMO_ADMIN` | Crea el admin de demostración | **No activar fuera de tu máquina** |
+| `SEED_DEMO_MEDICOS` | Carga profesionales de demostración en todas las especialidades | **No activar fuera de tu máquina** |
 
 ## Limitaciones conocidas
 

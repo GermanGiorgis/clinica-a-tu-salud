@@ -126,6 +126,22 @@ public class TurnoService {
         return new DisponibilidadResponse(fecha, libres);
     }
 
+    /**
+     * El primer día, desde {@code desde} (o desde hoy si es anterior o no se indica), en que el médico tiene algún horario libre, dentro de
+     * la ventana de reserva. Es lo que le falta a quien abre la agenda un día en que el médico no atiende.
+     */
+    @Transactional(readOnly = true)
+    public Optional<LocalDate> proximoDiaConHorarios(Long medicoId, LocalDate desde) {
+        LocalDate hoy = LocalDate.now(clock);
+        LocalDate ultimo = hoy.plusDays(VENTANA_RESERVA_DIAS);
+        for (LocalDate dia = desde == null || desde.isBefore(hoy) ? hoy : desde; !dia.isAfter(ultimo); dia = dia.plusDays(1)) {
+            if (!disponibilidad(medicoId, dia).horariosLibres().isEmpty()) {
+                return Optional.of(dia);
+            }
+        }
+        return Optional.empty();
+    }
+
     public TurnoResponse crear(CrearTurnoRequest request) {
         Usuario usuarioActual = usuarioContextService.getUsuarioActual();
         Paciente paciente = resolverPacienteParaReserva(usuarioActual, request.pacienteDni());

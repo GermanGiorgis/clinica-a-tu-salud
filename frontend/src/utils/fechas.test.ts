@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fechaHoraLegible, fechaLegible, hoyISO, ultimoDiaReservableISO, VENTANA_RESERVA_DIAS } from "./fechas";
+import { diaSiguienteISO, fechaHoraLegible, fechaLegible, hoyISO, ultimoDiaReservableISO, VENTANA_RESERVA_DIAS } from "./fechas";
 import { soloDigitos } from "./dni";
 
 describe("fechas", () => {
@@ -39,5 +39,13 @@ describe("soloDigitos", () => {
   it("corta en 9 dígitos y acepta vacío", () => {
     expect(soloDigitos("1234567890123")).toBe("123456789");
     expect(soloDigitos("")).toBe("");
+  });
+
+  it("diaSiguienteISO pasa de mes y de año y respeta los bisiestos", () => {
+    expect(diaSiguienteISO("2026-10-13")).toBe("2026-10-14");
+    expect(diaSiguienteISO("2026-10-31")).toBe("2026-11-01");
+    expect(diaSiguienteISO("2026-12-31")).toBe("2027-01-01");
+    expect(diaSiguienteISO("2028-02-28")).toBe("2028-02-29");
+    expect(diaSiguienteISO("2027-02-28")).toBe("2027-03-01");
   });
 });
