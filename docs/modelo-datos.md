@@ -237,10 +237,13 @@ código: los carga el personal por anticipado, porque los de cada provincia
 cambian de un año a otro (feriados puente, días no laborables).
 
 `PATOLOGIA` es un catálogo que edita el admin: cada síntoma/patología apunta a
-una `ESPECIALIDAD`. Un paciente que no sabe a qué especialista ir elige "qué
-le pasa" y el sistema le filtra los médicos de esa especialidad (ver regla 13).
-Es solo una ayuda de navegación, no una restricción: el paciente igual puede
-elegir cualquier médico directamente.
+**una o varias** `ESPECIALIDAD` (tabla `patologia_especialidad`: "dolor de cabeza"
+es de neurología o de clínica médica). Un paciente que no sabe a qué especialista
+ir elige "qué le pasa" y la pantalla de especialidades muestra solo las que lo
+atienden, para que elija entre ellas. La migración `V12` carga ~28 síntomas básicos
+(dolor de cabeza, de estómago, lunares en la piel, tos, fiebre, dolor de espalda,
+ansiedad...). Es solo una ayuda de navegación, no una restricción: el paciente
+igual puede elegir cualquier especialidad o médico directamente.
 
 ## Fases
 

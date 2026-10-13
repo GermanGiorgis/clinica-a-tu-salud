@@ -7,20 +7,23 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * Catálogo de sintomas/patologías que el admin mapea a una Especialidad, para
+ * Catálogo de síntomas/patologías que el admin mapea a una o más Especialidades, para
  * que un paciente que no sabe a qué especialista ir pueda elegir "qué le
- * pasa" y el sistema le muestre los médicos de la especialidad indicada.
+ * pasa" y el sistema le muestre las especialidades que corresponden.
  */
 @Entity
 @Table(name = "patologia")
@@ -39,8 +42,13 @@ public class Patologia {
     @Column(nullable = false, length = 100)
     private String nombre;
 
-    @NotNull
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "especialidad_id", nullable = false)
-    private Especialidad especialidad;
+    /** Las especialidades que atienden este síntoma; ninguna sola alcanza ("dolor de cabeza": neurología o clínica). */
+    @Builder.Default
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+            name = "patologia_especialidad",
+            joinColumns = @JoinColumn(name = "patologia_id"),
+            inverseJoinColumns = @JoinColumn(name = "especialidad_id")
+    )
+    private List<Especialidad> especialidades = new ArrayList<>();
 }

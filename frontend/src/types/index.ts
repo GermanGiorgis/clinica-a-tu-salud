@@ -69,7 +69,8 @@ export interface MotivoCancelacion {
 export interface Patologia {
   id: number;
   nombre: string;
-  especialidad: Especialidad;
+  /** Las especialidades que atienden este síntoma (una o varias). */
+  especialidades: Especialidad[];
 }
 
 export interface Diagnostico {

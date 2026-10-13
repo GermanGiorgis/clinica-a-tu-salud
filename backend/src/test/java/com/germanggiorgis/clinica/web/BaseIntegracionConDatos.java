@@ -85,6 +85,7 @@ abstract class BaseIntegracionConDatos {
         jdbc.update("DELETE FROM horario_atencion WHERE medico_id IN " + medicos);
         jdbc.update("DELETE FROM medico_especialidad WHERE medico_id IN " + medicos);
         jdbc.update("DELETE FROM medico WHERE id IN " + medicos);
+        jdbc.update("DELETE FROM patologia WHERE nombre LIKE '" + PREFIJO + "%'");
         jdbc.update("DELETE FROM especialidad WHERE nombre LIKE '" + PREFIJO + "%'");
         jdbc.update("DELETE FROM afiliacion WHERE paciente_id IN " + pacientes);
         jdbc.update("DELETE FROM paciente WHERE id IN " + pacientes);

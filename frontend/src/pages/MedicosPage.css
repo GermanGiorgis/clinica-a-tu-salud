@@ -140,3 +140,26 @@
   font-size: 0.85rem;
   color: var(--color-muted-foreground);
 }
+
+.especialidades__sugerencia {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm) var(--space-md);
+  padding: 0.75rem 1rem;
+  margin: 0 0 var(--space-md);
+  background: var(--color-accent-soft);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.especialidades__sugerencia p {
+  margin: 0;
+}
+
+.especialidades__urgencia {
+  margin: 0 0 var(--space-md);
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+}

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { listarEspecialidades } from "../api/especialidades";
 import { listarMedicos } from "../api/medicos";
 import { listarPatologias } from "../api/patologias";
@@ -9,15 +9,16 @@ import "./MedicosPage.css";
 
 /**
  * Punto de partida para sacar un turno: se elige la especialidad (traumatología, dermatología...) y
- * recién ahí se ven los médicos que la atienden. Quien no sabe a cuál ir puede decir qué le pasa y el
- * sistema lo lleva a la especialidad que corresponde.
+ * recién ahí se ven los médicos que la atienden. Quien no sabe a cuál ir puede decir qué le pasa y se
+ * muestran solo las especialidades que atienden ese síntoma (suelen ser dos o tres: "dolor de cabeza" es de
+ * neurología o de clínica médica).
  */
 export function MedicosPage() {
-  const navigate = useNavigate();
   const [especialidades, setEspecialidades] = useState<Especialidad[] | null>(null);
   const [medicos, setMedicos] = useState<Medico[] | null>(null);
   const [patologias, setPatologias] = useState<Patologia[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [sintomaId, setSintomaId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,18 +40,29 @@ export function MedicosPage() {
     return cuenta;
   }, [medicos]);
 
+  const sintomas = useMemo(
+    () => [...patologias].sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+    [patologias],
+  );
+  const sintoma = patologias.find((p) => String(p.id) === sintomaId);
+
   const visibles = useMemo(() => {
     const termino = normalizar(busqueda);
+    const delSintoma = sintoma ? new Set(sintoma.especialidades.map((e) => e.id)) : null;
     return (especialidades ?? [])
-      .filter((e) => normalizar(e.nombre).includes(termino))
+      .filter((e) => normalizar(e.nombre).includes(termino) && (!delSintoma || delSintoma.has(e.id)))
       .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-  }, [especialidades, busqueda]);
+  }, [especialidades, busqueda, sintoma]);
 
-  function handlePatologia(id: string) {
-    const patologia = patologias.find((p) => String(p.id) === id);
-    if (patologia) {
-      navigate(`/medicos/especialidad/${patologia.especialidad.id}`);
-    }
+  // Los dos filtros no se combinan: quien elige un síntoma deja de buscar por nombre, y al revés.
+  function elegirSintoma(id: string) {
+    setSintomaId(id);
+    if (id) setBusqueda("");
+  }
+
+  function buscar(texto: string) {
+    setBusqueda(texto);
+    if (texto) setSintomaId("");
   }
 
   return (
@@ -67,21 +79,37 @@ export function MedicosPage() {
             type="search"
             placeholder="Ej.: traumatología"
             value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
+            onChange={(e) => buscar(e.target.value)}
           />
         </label>
         {patologias.length > 0 && (
           <label className="especialidades__buscador">
             ¿No sabés cuál? ¿Qué te pasa?
-            <select value="" onChange={(e) => handlePatologia(e.target.value)}>
+            <select value={sintomaId} onChange={(e) => elegirSintoma(e.target.value)}>
               <option value="">Elegí un síntoma…</option>
-              {patologias.map((p) => (
+              {sintomas.map((p) => (
                 <option key={p.id} value={p.id}>{p.nombre}</option>
               ))}
             </select>
           </label>
         )}
       </div>
+
+      {sintoma && (
+        <div className="especialidades__sugerencia" role="status">
+          <p>
+            Para <strong>{sintoma.nombre.toLowerCase()}</strong> te sugerimos
+            {sintoma.especialidades.length === 1 ? " esta especialidad" : " estas especialidades"}. Elegí la que prefieras
+            y mirá sus médicos.
+          </p>
+          <button type="button" className="btn btn-secondary" onClick={() => elegirSintoma("")}>Ver todas las especialidades</button>
+        </div>
+      )}
+      {patologias.length > 0 && (
+        <p className="especialidades__urgencia">
+          Si es una urgencia (dolor fuerte en el pecho, falta de aire, desmayo), no esperes un turno: llamá al 107 o andá a una guardia.
+        </p>
+      )}
 
       {error && <p className="error-banner">{error}</p>}
       {!error && especialidades === null && <p className="empty-state">Cargando…</p>}
