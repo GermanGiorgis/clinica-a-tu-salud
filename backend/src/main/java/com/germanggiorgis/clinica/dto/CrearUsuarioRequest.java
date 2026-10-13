@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import com.germanggiorgis.clinica.validation.ClaveValida;
+import com.germanggiorgis.clinica.validation.Formatos;
+import com.germanggiorgis.clinica.validation.NacimientoPlausible;
 import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
@@ -22,13 +24,13 @@ public record CrearUsuarioRequest(
         @NotNull Rol rol,
         @NotBlank @Size(max = 100) String nombre,
         @NotBlank @Size(max = 100) String apellido,
-        @NotBlank @Email @Size(max = 255) String email,
+        @NotBlank @Email @Pattern(regexp = Formatos.EMAIL, message = Formatos.MENSAJE_EMAIL) @Size(max = 255) String email,
         @NotBlank @ClaveValida String password,
-        @Size(max = 30) String telefono,
+        @Pattern(regexp = Formatos.TELEFONO, message = Formatos.MENSAJE_TELEFONO) @Size(max = 30) String telefono,
 
         // Solo PACIENTE
         @Pattern(regexp = "\\d{6,9}", message = "El DNI tiene que tener entre 6 y 9 números, sin puntos ni espacios") String dni,
-        @Past LocalDate fechaNacimiento,
+        @Past @NacimientoPlausible LocalDate fechaNacimiento,
 
         // Solo MEDICO
         @Size(max = 30) String matricula,

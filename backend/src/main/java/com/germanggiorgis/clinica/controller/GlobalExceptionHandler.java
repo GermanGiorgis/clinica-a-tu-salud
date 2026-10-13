@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -51,10 +52,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex) {
+        // Un campo vacío incumple a la vez "es obligatorio" y su formato; de las dos, la persona necesita leer la primera.
         Map<String, String> errores = new LinkedHashMap<>();
-        for (var fieldError : ex.getBindingResult().getFieldErrors()) {
-            errores.put(fieldError.getField(), fieldError.getDefaultMessage());
-        }
+        ex.getBindingResult().getFieldErrors().stream()
+                .sorted(Comparator.comparing(fieldError -> !esDeObligatoriedad(fieldError.getCode())))
+                .forEach(fieldError -> errores.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage()));
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("error", "Revisá los datos ingresados", "errores", errores));
     }
@@ -121,6 +123,10 @@ public class GlobalExceptionHandler {
         log.error("Error no controlado", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(Map.of("error", "Ocurrió un error inesperado. Probá de nuevo en unos minutos"));
+    }
+
+    private static boolean esDeObligatoriedad(String codigo) {
+        return "NotBlank".equals(codigo) || "NotNull".equals(codigo) || "NotEmpty".equals(codigo);
     }
 
     private static String mensajePara(HttpStatusCode status) {
