@@ -1,80 +1,174 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight, CalendarCheck, ClipboardText, LockKey, Stethoscope, SquaresFour } from "@phosphor-icons/react";
+import { listarEspecialidades } from "../api/especialidades";
+import { listarPatologias } from "../api/patologias";
 import { useAuth } from "../context/AuthContext";
-import { CheckCircle, Circle, FirstAidKit, Headset, Shield, Stethoscope, User } from "@phosphor-icons/react";
+import { iconoDeEspecialidad, normalizar } from "../utils/especialidades";
+import { esPersonalDeLaClinica } from "../utils/roles";
+import type { Especialidad, Patologia } from "../types";
+import "./HomePage.css";
 
-const ROLES = [
+export const NOMBRE_DE_LA_CLINICA = "Clínica a tu salud";
+
+/** Las especialidades que más se buscan, en el orden en que se muestran (si el catálogo no las tiene, se omiten). */
+const ESPECIALIDADES_DESTACADAS = [
+  "Clínica Médica", "Pediatría", "Ginecología", "Dermatología",
+  "Traumatología", "Cardiología", "Oftalmología", "Odontología",
+];
+
+/** Los motivos de consulta más habituales, para que quien no sabe a qué especialista ir empiece con un clic. */
+const SINTOMAS_FRECUENTES = [
+  "Dolor de cabeza", "Dolor de estómago", "Lunares o manchas", "Dolor de espalda", "Fiebre", "Tos, falta de aire",
+];
+
+const MOTIVOS = [
   {
-    nombre: "Paciente",
-    icono: User,
-    detalle: "Elige una especialidad y ve sus médicos, reserva y cancela sus turnos, consulta su historial y recetas.",
+    icono: CalendarCheck,
+    titulo: "Reservá cuando quieras",
+    detalle: "Mirá los horarios libres de cada médico y sacá tu turno online. Si cambia tu agenda, lo cancelás o lo movés desde Mis turnos.",
   },
   {
-    nombre: "Médico",
-    icono: Stethoscope,
-    detalle: "Ve y gestiona su propia agenda (reserva, confirma, cancela, marca ausente), atiende turnos, carga consulta, diagnóstico y receta.",
+    icono: SquaresFour,
+    titulo: "Todas las especialidades",
+    detalle: "Desde clínica médica y pediatría hasta cardiología, dermatología o traumatología, en un solo lugar.",
   },
   {
-    nombre: "Recepción",
-    icono: Headset,
-    detalle: "Atiende el mostrador: ve la agenda de todos los médicos, reserva y cancela turnos, verifica la identidad de los pacientes y carga feriados y ausencias. No accede a historias clínicas.",
+    icono: ClipboardText,
+    titulo: "Tu historial a mano",
+    detalle: "Consultas, diagnósticos, recetas y tu cobertura médica, ordenados en tu cuenta.",
   },
   {
-    nombre: "Admin",
-    icono: Shield,
-    detalle: "Administra usuarios y catálogos, y puede gestionar la agenda de cualquier médico igual que el propio médico.",
+    icono: LockKey,
+    titulo: "Tus datos, protegidos",
+    detalle: "Tu historia clínica la ven solo vos y tu médico, y cada acceso queda registrado.",
   },
 ];
 
-const FASES = [
-  { nombre: "Turnos", detalle: "login, roles, agenda y reserva", hecha: true },
-  { nombre: "Atención clínica", detalle: "consulta, diagnóstico, receta e historial", hecha: true },
-  { nombre: "Cobertura", detalle: "obra social y afiliación del paciente", hecha: true },
-  { nombre: "Complementos", detalle: "estudios, encuesta de satisfacción y facturación", hecha: true },
-  { nombre: "Métricas", detalle: "panel de indicadores de la clínica para el admin", hecha: true },
-];
+/** La especialidad del catálogo que corresponde a un nombre corto como "Traumatología" (sin importar tildes ni mayúsculas). */
+function buscarEspecialidad(catalogo: Especialidad[], nombre: string): Especialidad | undefined {
+  const buscado = normalizar(nombre);
+  return catalogo.find((e) => normalizar(e.nombre).startsWith(buscado));
+}
+
+/** El síntoma del catálogo cuyo nombre empieza con el texto dado (el catálogo dice "Dolor de estómago o de panza"). */
+function buscarSintoma(catalogo: Patologia[], texto: string): Patologia | undefined {
+  const buscado = normalizar(texto);
+  return catalogo.find((p) => normalizar(p.nombre).startsWith(buscado));
+}
 
 export function HomePage() {
-  const { estaAutenticado } = useAuth();
+  const { estaAutenticado, usuario } = useAuth();
+  const [especialidades, setEspecialidades] = useState<Especialidad[]>([]);
+  const [sintomas, setSintomas] = useState<Patologia[]>([]);
+
+  // La portada tiene que abrir aunque el servidor no conteste: sin catálogos solo faltan esos bloques.
+  useEffect(() => {
+    listarEspecialidades().then(setEspecialidades).catch(() => {});
+    listarPatologias().then(setSintomas).catch(() => {});
+  }, []);
+
+  const destacadas = useMemo(
+    () => ESPECIALIDADES_DESTACADAS.map((n) => buscarEspecialidad(especialidades, n)).filter((e): e is Especialidad => !!e),
+    [especialidades],
+  );
+  const frecuentes = useMemo(
+    () => SINTOMAS_FRECUENTES.map((s) => buscarSintoma(sintomas, s)).filter((p): p is Patologia => !!p),
+    [sintomas],
+  );
+
+  const esPersonal = esPersonalDeLaClinica(usuario?.rol);
+  const esPaciente = usuario?.rol === "PACIENTE";
+
   return (
-    <main className="page">
-      <section className="home-hero">
-        <span className="home-hero__badge">
-          <FirstAidKit size={16} weight="bold" aria-hidden="true" /> Todas las fases hechas
-        </span>
-        <h1>Gestión de turnos y atención médica</h1>
-        <p className="home-hero__texto">
-          Los pacientes reservan online, los médicos administran su agenda y
-          cargan la historia clínica, y el administrador coordina el día a
-          día de la clínica.
-        </p>
-        <div className="home-hero__acciones">
-          <Link to="/medicos" className="btn btn-primary">Buscar por especialidad</Link>
-          {!estaAutenticado && <Link to="/registro" className="btn btn-secondary">Crear cuenta de paciente</Link>}
+    <main className="page home">
+      <section className="home__hero">
+        <div className="home__hero-texto">
+          <p className="home__marca"><Stethoscope size={18} weight="bold" aria-hidden="true" /> {NOMBRE_DE_LA_CLINICA}</p>
+          <h1>Pedí tu turno en minutos</h1>
+          <p className="home__bajada">
+            Elegí la especialidad, mirá los horarios disponibles y reservá online. Si no sabés a cuál ir, contanos qué te pasa.
+          </p>
+          <div className="home__acciones">
+            {esPersonal ? (
+              <Link to="/agenda" className="btn btn-primary">Ir a la agenda</Link>
+            ) : (
+              <Link to="/medicos" className="btn btn-primary">Sacar un turno</Link>
+            )}
+            {!estaAutenticado && <Link to="/registro" className="btn btn-secondary">Crear cuenta de paciente</Link>}
+            {esPaciente && <Link to="/mis-turnos" className="btn btn-secondary">Mis turnos</Link>}
+          </div>
         </div>
+
+        {frecuentes.length > 0 && (
+          <div className="home__sintomas card" aria-labelledby="home-que-te-pasa">
+            <h2 id="home-que-te-pasa">¿Qué te pasa?</h2>
+            <p>Elegí lo que sentís y te mostramos las especialidades que lo atienden.</p>
+            <ul>
+              {frecuentes.map((s) => (
+                <li key={s.id}>
+                  <Link to={`/medicos?sintoma=${s.id}`}>{s.nombre}</Link>
+                </li>
+              ))}
+            </ul>
+            <Link to="/medicos" className="home__ver-mas">Ver todos los síntomas <ArrowRight size={14} aria-hidden="true" /></Link>
+          </div>
+        )}
       </section>
 
-      <h2>Roles</h2>
-      <ul className="roles">
-        {ROLES.map((rol) => (
-          <li key={rol.nombre} className="card roles__item">
-            <rol.icono size={26} weight="duotone" aria-hidden="true" />
-            <h3>{rol.nombre}</h3>
-            <p>{rol.detalle}</p>
-          </li>
-        ))}
-      </ul>
+      {destacadas.length > 0 && (
+        <section className="home__seccion" aria-labelledby="home-especialidades">
+          <div className="home__seccion-cabecera">
+            <h2 id="home-especialidades">Especialidades</h2>
+            <Link to="/medicos" className="home__ver-mas">
+              Ver las {especialidades.length} especialidades <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          <ul className="home__especialidades">
+            {destacadas.map((e) => {
+              const Icono = iconoDeEspecialidad(e.nombre);
+              return (
+                <li key={e.id}>
+                  <Link to={`/medicos/especialidad/${e.id}`} className="card home__especialidad">
+                    <span className="home__icono"><Icono size={24} weight="duotone" aria-hidden="true" /></span>
+                    {e.nombre}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
-      <h2>Fases del proyecto</h2>
-      <ol className="fases">
-        {FASES.map((fase) => (
-          <li key={fase.nombre} data-hecha={fase.hecha}>
-            {fase.hecha
-              ? <CheckCircle size={18} weight="fill" aria-hidden="true" />
-              : <Circle size={18} aria-hidden="true" />}
-            <span><strong>{fase.nombre}</strong> — {fase.detalle}</span>
-          </li>
-        ))}
-      </ol>
+      <section className="home__seccion" aria-labelledby="home-motivos">
+        <h2 id="home-motivos">Una clínica pensada para vos</h2>
+        <ul className="home__motivos">
+          {MOTIVOS.map(({ icono: Icono, titulo, detalle }) => (
+            <li key={titulo}>
+              <span className="home__icono"><Icono size={24} weight="duotone" aria-hidden="true" /></span>
+              <h3>{titulo}</h3>
+              <p>{detalle}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {!estaAutenticado && (
+        <section className="home__invitacion">
+          <div>
+            <h2>¿Primera vez?</h2>
+            <p>Creá tu cuenta, reservá tu primer turno y encontrá todo en un mismo lugar. Para que podamos darte turnos y ver tu historial, llevá tu DNI la primera vez que vengas.</p>
+          </div>
+          <div className="home__acciones">
+            <Link to="/registro" className="btn btn-primary">Crear cuenta</Link>
+            <Link to="/login" className="btn btn-secondary">Ya tengo cuenta</Link>
+          </div>
+        </section>
+      )}
+
+      <p className="home__urgencias">
+        Si es una urgencia (dolor fuerte en el pecho, falta de aire, desmayo), no esperes un turno: llamá al 107 o andá a una guardia.
+      </p>
     </main>
   );
 }

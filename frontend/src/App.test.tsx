@@ -29,7 +29,7 @@ vi.mock("./api/motivosCancelacion");
 vi.mock("./api/afiliaciones");
 vi.mock("./api/patologias");
 
-const TITULO_INICIO = "Gestión de turnos y atención médica";
+const TITULO_INICIO = "Pedí tu turno en minutos";
 
 /** App usa BrowserRouter, así que se navega con la URL real de jsdom. */
 function abrir(ruta: string, rol?: Rol) {

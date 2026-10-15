@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { listarEspecialidades } from "../api/especialidades";
 import { listarMedicos } from "../api/medicos";
 import { listarPatologias } from "../api/patologias";
@@ -18,7 +18,9 @@ export function MedicosPage() {
   const [medicos, setMedicos] = useState<Medico[] | null>(null);
   const [patologias, setPatologias] = useState<Patologia[]>([]);
   const [busqueda, setBusqueda] = useState("");
-  const [sintomaId, setSintomaId] = useState("");
+  // La portada manda a quien eligió un síntoma ahí (/medicos?sintoma=3) con ese filtro ya aplicado.
+  const [parametros] = useSearchParams();
+  const [sintomaId, setSintomaId] = useState(parametros.get("sintoma") ?? "");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

@@ -20,7 +20,6 @@ import { PacientesPendientesPage } from "./pages/PacientesPendientesPage";
 import { AuditoriaPage } from "./pages/AuditoriaPage";
 import { DiasNoLaborablesPage } from "./pages/DiasNoLaborablesPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
-import "./App.css";
 
 export default function App() {
   return (

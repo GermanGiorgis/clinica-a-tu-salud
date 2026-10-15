@@ -22,7 +22,7 @@ export function Header() {
     <header className="header">
       <Link to="/" className="header__marca">
         <Stethoscope size={22} weight="bold" aria-hidden="true" />
-        Clínica
+        Clínica a tu salud
       </Link>
       <nav className="header__nav">
         <Link to="/medicos" className={activo("/medicos") ? "activo" : ""}>Especialidades</Link>

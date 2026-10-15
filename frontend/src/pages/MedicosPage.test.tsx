@@ -192,6 +192,24 @@ describe("MedicosPage (especialidades)", () => {
       expect(screen.getByLabelText(/Buscar especialidad/)).toHaveValue("");
     });
 
+    it("si se llega desde la portada con un síntoma elegido (?sintoma=2), ya viene filtrado", async () => {
+      renderConSesion(<MedicosPage />, { ruta: "/medicos?sintoma=2", path: "/medicos" });
+
+      expect(await screen.findByRole("link", { name: /Traumatología/ })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Clínica Médica/ })).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: /Dermatología/ })).not.toBeInTheDocument();
+      expect(screen.getByLabelText(/¿Qué te pasa\?/)).toHaveValue("2");
+      expect(screen.getByRole("status")).toHaveTextContent("Para dolor de cabeza");
+    });
+
+    it("un síntoma de la dirección que no existe se ignora y muestra todas las especialidades", async () => {
+      renderConSesion(<MedicosPage />, { ruta: "/medicos?sintoma=999", path: "/medicos" });
+
+      expect(await screen.findByRole("link", { name: /Dermatología/ })).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: /Clínica Médica/ })).toBeInTheDocument();
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    });
+
     it("avisa qué hacer si es una urgencia", async () => {
       montar();
 

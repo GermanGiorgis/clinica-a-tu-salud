@@ -1,4 +1,4 @@
-# Clínica
+# Clínica a tu salud
 
 Sistema web de gestión de turnos y atención médica. Los pacientes reservan
 online, los médicos administran su agenda y cargan la historia clínica, y el
