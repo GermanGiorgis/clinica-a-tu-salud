@@ -1,0 +1,5 @@
+target/
+.git
+*.log
+# Configuración local con la contraseña de tu base: nunca debe entrar a una imagen.
+src/main/resources/application-local.properties

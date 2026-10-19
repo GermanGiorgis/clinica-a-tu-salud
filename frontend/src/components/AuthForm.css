@@ -94,3 +94,34 @@
   font-size: 0.88rem;
   margin: 0;
 }
+
+.auth-form__demo {
+  margin-top: var(--space-lg);
+  padding: var(--space-md);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-muted);
+}
+
+.auth-form__demo h2 {
+  margin: 0 0 var(--space-sm);
+  font-size: 0.95rem;
+}
+
+.auth-form__demo ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.auth-form__demo li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--color-muted-foreground);
+}

@@ -1,0 +1,11 @@
+.aviso-demo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  padding: 0.4rem var(--space-md);
+  background: var(--color-warning-bg);
+  color: #7c2d12;
+  font-size: 0.82rem;
+  text-align: center;
+}

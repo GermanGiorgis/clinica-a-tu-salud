@@ -1,0 +1,52 @@
+# Levanta todo con un comando (necesita Docker):  docker compose up --build
+#   Aplicación:  http://localhost:5176        API:  http://localhost:8080
+#
+# Es para probar la aplicación en tu máquina. Las contraseñas y el secreto de abajo son de DEMOSTRACIÓN y
+# están a la vista a propósito: no los uses en un entorno real (ver "Variables de entorno" en el README).
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: clinica
+      POSTGRES_PASSWORD: clinica
+      POSTGRES_DB: clinica
+    volumes:
+      # Desde Postgres 18 la imagen guarda los datos en un subdirectorio versionado de /var/lib/postgresql.
+      - clinica-datos:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clinica -d clinica"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_USER: clinica
+      DB_PASSWORD: clinica
+      JWT_SECRET: docker-compose-solo-demostracion-no-es-un-secreto-real-0123456789abcdef
+      CORS_ALLOWED_ORIGIN: http://localhost:5176
+      # Datos de demostración: admin (admin@clinica.test), una cuenta por rol y profesionales en todas las especialidades.
+      SEED_DEMO_ADMIN: "true"
+      SEED_DEMO_CUENTAS: "true"
+      SEED_DEMO_MEDICOS: "true"
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:8080
+        VITE_MODO_DEMO: "true"
+    depends_on:
+      - backend
+    ports:
+      - "5176:80"
+
+volumes:
+  clinica-datos:
