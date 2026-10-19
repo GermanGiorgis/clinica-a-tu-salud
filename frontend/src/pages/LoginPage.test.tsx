@@ -1,7 +1,7 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { AxiosError, type AxiosResponse } from "axios";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as authApi from "../api/auth";
 import { apiClient } from "../api/client";
 import { usuario } from "../test/fixtures";
@@ -49,13 +49,23 @@ describe("LoginPage", () => {
     expect(localStorage.getItem("token")).toBeNull();
   });
 
-  it("si no hay respuesta del servidor muestra el mensaje genérico de credenciales", async () => {
-    vi.mocked(authApi.login).mockRejectedValue(new Error("Network Error"));
+  it("si no hay conexión con el servidor lo dice, sin acusar a las credenciales", async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new AxiosError("Network Error", "ERR_NETWORK"));
     renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
 
     await completar("ana@clinica.test", "paciente123");
 
-    expect(await screen.findByText("Email o contraseña incorrectos")).toBeInTheDocument();
+    expect(await screen.findByText(/No se pudo conectar con el servidor/)).toBeInTheDocument();
+    expect(screen.queryByText(/Email o contraseña incorrectos/)).not.toBeInTheDocument();
+  });
+
+  it("ante una falla inesperada muestra un mensaje genérico, también sin acusar a las credenciales", async () => {
+    vi.mocked(authApi.login).mockRejectedValue(new Error("boom"));
+    renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
+
+    await completar("ana@clinica.test", "paciente123");
+
+    expect(await screen.findByText("Ocurrió un error. Probá de nuevo.")).toBeInTheDocument();
   });
 
   it("mientras ingresa deshabilita el botón para evitar doble envío", async () => {
@@ -92,5 +102,56 @@ describe("LoginPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Ingresar" }));
 
     expect(authApi.login).not.toHaveBeenCalled();
+  });
+
+  describe("cuentas de demostración", () => {
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it("en la versión normal no se ofrecen", () => {
+      vi.stubEnv("VITE_MODO_DEMO", "false");
+      renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
+
+      expect(screen.queryByText(/cuenta de demostración/)).not.toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Entrar como/ })).not.toBeInTheDocument();
+    });
+
+    it("en la versión de demostración hay un botón por rol", () => {
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
+
+      for (const rol of ["paciente", "médico", "recepción", "administrador"]) {
+        expect(screen.getByRole("button", { name: `Entrar como ${rol}` })).toBeInTheDocument();
+      }
+    });
+
+    it.each([
+      ["paciente", "paciente@clinica-demo.test", "demo-clinica-2026"],
+      ["médico", "medico@clinica-demo.test", "demo-clinica-2026"],
+      ["recepción", "recepcion@clinica-demo.test", "demo-clinica-2026"],
+      ["administrador", "admin@clinica.test", "admin1234"],
+    ])("«Entrar como %s» inicia sesión con esa cuenta de un solo clic", async (rol, email, clave) => {
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      vi.mocked(authApi.login).mockResolvedValue(respuestaOk);
+      renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
+
+      await userEvent.click(screen.getByRole("button", { name: `Entrar como ${rol}` }));
+
+      await waitFor(() => expect(authApi.login).toHaveBeenCalledWith(email, clave));
+      await waitFor(() => expect(screen.getByTestId("ubicacion")).toHaveTextContent(/^\/$/));
+    });
+
+    it("si el servidor no responde lo dice y los botones vuelven a estar disponibles", async () => {
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      vi.mocked(authApi.login).mockRejectedValue(new AxiosError("Network Error", "ERR_NETWORK"));
+      renderConSesion(<LoginPage />, { ruta: "/login", path: "/login" });
+
+      await userEvent.click(screen.getByRole("button", { name: "Entrar como paciente" }));
+
+      expect(await screen.findByText(/No se pudo conectar con el servidor/)).toBeInTheDocument();
+      expect(screen.queryByText(/Email o contraseña incorrectos/)).not.toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Entrar como paciente" })).toBeEnabled();
+    });
   });
 });

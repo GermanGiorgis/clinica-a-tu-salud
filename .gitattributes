@@ -1,0 +1,7 @@
+# Los scripts y archivos que se ejecutan dentro de Linux (Docker, CI) tienen que tener saltos de línea LF
+# aunque quien clone el repositorio esté en Windows.
+*.sh text eol=lf
+mvnw text eol=lf
+Dockerfile text eol=lf
+*.conf text eol=lf
+*.yml text eol=lf

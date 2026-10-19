@@ -111,6 +111,7 @@
 					     demostración se cargarían en la base de pruebas y la ensuciarían. -->
 					<systemPropertyVariables>
 						<clinica.seed.demo-medicos>false</clinica.seed.demo-medicos>
+						<clinica.seed.demo-cuentas>false</clinica.seed.demo-cuentas>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

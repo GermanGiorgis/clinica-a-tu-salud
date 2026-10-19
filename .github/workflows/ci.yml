@@ -36,8 +36,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "21"
@@ -52,8 +52,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -65,3 +65,19 @@ jobs:
         run: npm test
       - name: Tipos y build
         run: npm run build
+
+  docker:
+    name: Docker Compose (levanta todo y prueba de humo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Construir y levantar
+        run: docker compose up -d --build
+      - name: Prueba de humo (frontend, API y cuentas de demostración)
+        run: scripts/smoke-test.sh
+      - name: Logs del backend si algo falló
+        if: failure()
+        run: docker compose logs backend db
+      - name: Bajar todo
+        if: always()
+        run: docker compose down -v
