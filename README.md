@@ -265,3 +265,7 @@ Lo que la auditoría marcó y sigue pendiente, dicho sin maquillaje:
 ## Documentación
 
 - [Modelo de datos y reglas de negocio](docs/modelo-datos.md)
+
+## Contribuir
+
+Las ideas y los cambios son bienvenidos: la guía para levantar el proyecto, probar un cambio y abrir un Pull Request está en [CONTRIBUTING.md](CONTRIBUTING.md). El código se publica bajo licencia [MIT](LICENSE).
