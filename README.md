@@ -35,6 +35,30 @@ Incluye 64 profesionales en las 36 especialidades, un turno de ejemplo y todos l
 
 > Las contraseñas y el secreto del `docker-compose.yml` son **de demostración y públicos a propósito**: sirven para probar en tu máquina, no para un entorno real.
 
+## Capturas
+
+<p align="center">
+  <img src="docs/capturas/01-portada.jpg" alt="Portada de Clínica a tu salud: pedí tu turno, qué te pasa y especialidades" width="860">
+  <br><sub><b>Portada.</b> Quien no sabe a qué especialista ir elige lo que siente y ve las especialidades que lo atienden.</sub>
+</p>
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/capturas/02-sintomas.jpg" alt="Especialidades filtradas por el síntoma dolor de cabeza"><br><sub><b>Por síntoma.</b> «Dolor de cabeza» muestra Neurología y Clínica Médica.</sub></td>
+    <td width="50%"><img src="docs/capturas/03-reserva.jpg" alt="Elección de horario y reserva de un turno"><br><sub><b>Reserva.</b> Horarios libres del médico y reserva con un clic (paciente).</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/capturas/04-mis-turnos.jpg" alt="Mis turnos del paciente"><br><sub><b>Mis turnos.</b> Confirmar, reprogramar o cancelar un turno (paciente).</sub></td>
+    <td width="50%"><img src="docs/capturas/05-agenda-medico.jpg" alt="Agenda del médico"><br><sub><b>Agenda del médico.</b> Confirmar, marcar ausente, ver el historial y reprogramar.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="docs/capturas/06-usuarios-admin.jpg" alt="Pantalla de usuarios del administrador"><br><sub><b>Administración.</b> Alta, baja y reactivación de médicos, recepción, pacientes y administradores.</sub></td>
+    <td width="50%" align="center"><img src="docs/capturas/07-movil.jpg" alt="Portada en un celular" width="260"><br><sub><b>En el celular.</b> El diseño se adapta a pantallas chicas.</sub></td>
+  </tr>
+</table>
+
+> Las capturas salen de los datos de demostración y se pueden regenerar con `node scripts/capturar-pantallas.mjs` (necesita la aplicación levantada y Chrome o Edge).
+
 ## Origen
 
 El proyecto nace de un trabajo práctico grupal de la facultad (Programación III,
