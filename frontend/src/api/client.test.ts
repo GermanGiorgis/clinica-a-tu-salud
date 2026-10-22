@@ -1,6 +1,6 @@
 import { AxiosError, type AxiosAdapter, type InternalAxiosRequestConfig } from "axios";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiClient, registrarManejadorDeSesionVencida, TIMEOUT_MS } from "./client";
+import { apiClient, registrarManejadorDeSesionVencida, suscribirseALentitud, TIMEOUT_DEMO_MS, TIMEOUT_MS, UMBRAL_LENTO_MS } from "./client";
 
 describe("apiClient", () => {
   const adaptadorOriginal = apiClient.defaults.adapter;
@@ -92,6 +92,151 @@ describe("apiClient", () => {
       await expect(apiClient.get("/api/turnos/mios")).rejects.toThrow();
 
       expect(manejador).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("pedidos lentos (modo demostración: el servidor gratuito se está despertando)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllEnvs();
+    });
+
+    /** Un servidor que contesta recién cuando se llama a `responder` (o falla, si se le pide). */
+    function servidorManual(fallar = false) {
+      let responder: () => void = () => {};
+      const espera = new Promise<void>((r) => {
+        responder = r;
+      });
+      const adaptador: AxiosAdapter = async (config) => {
+        await espera;
+        if (fallar) {
+          throw new AxiosError("Network Error", "ERR_NETWORK", config);
+        }
+        return { data: {}, status: 200, statusText: "OK", headers: {}, config };
+      };
+      apiClient.defaults.adapter = adaptador;
+      return responder;
+    }
+
+    it("avisa cuando un pedido pasa del umbral y de nuevo cuando termina", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      const oyente = vi.fn();
+      const baja = suscribirseALentitud(oyente);
+      const responder = servidorManual();
+
+      const pedido = apiClient.get("/api/medicos");
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS - 1);
+      expect(oyente).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2);
+      expect(oyente).toHaveBeenCalledTimes(1);
+      expect(oyente).toHaveBeenLastCalledWith(true);
+
+      responder();
+      await pedido;
+      expect(oyente).toHaveBeenCalledTimes(2);
+      expect(oyente).toHaveBeenLastCalledWith(false);
+      baja();
+    });
+
+    it("un pedido rápido no avisa nada, ni siquiera después de que pase el umbral", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      const oyente = vi.fn();
+      const baja = suscribirseALentitud(oyente);
+      const responder = servidorManual();
+
+      const pedido = apiClient.get("/api/medicos");
+      responder();
+      await pedido;
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS * 3);
+
+      expect(oyente).not.toHaveBeenCalled();
+      baja();
+    });
+
+    it("si el pedido lento falla, el aviso también se retira", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      const oyente = vi.fn();
+      const baja = suscribirseALentitud(oyente);
+      const responder = servidorManual(true);
+
+      const pedido = apiClient.get("/api/medicos").catch(() => "fallo");
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS + 1);
+      expect(oyente).toHaveBeenLastCalledWith(true);
+
+      responder();
+      await pedido;
+      expect(oyente).toHaveBeenLastCalledWith(false);
+      baja();
+    });
+
+    it("con varios pedidos lentos, el aviso se retira recién cuando termina el último", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      const oyente = vi.fn();
+      const baja = suscribirseALentitud(oyente);
+      const liberadores: (() => void)[] = [];
+      apiClient.defaults.adapter = async (config) => {
+        await new Promise<void>((r) => liberadores.push(r));
+        return { data: {}, status: 200, statusText: "OK", headers: {}, config };
+      };
+
+      const primero = apiClient.get("/api/medicos");
+      const segundo = apiClient.get("/api/especialidades");
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS + 1);
+      expect(oyente).toHaveBeenLastCalledWith(true);
+
+      liberadores[0]();
+      await primero;
+      expect(oyente).not.toHaveBeenLastCalledWith(false);
+
+      liberadores[1]();
+      await segundo;
+      expect(oyente).toHaveBeenLastCalledWith(false);
+      baja();
+    });
+
+    it("fuera del modo demostración no se hace ningún seguimiento", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "false");
+      const oyente = vi.fn();
+      const baja = suscribirseALentitud(oyente);
+      const responder = servidorManual();
+
+      const pedido = apiClient.get("/api/medicos");
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS * 3);
+      responder();
+      await pedido;
+
+      expect(oyente).not.toHaveBeenCalled();
+      baja();
+    });
+
+    it("quien se da de baja deja de enterarse", async () => {
+      vi.useFakeTimers();
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      const oyente = vi.fn();
+      suscribirseALentitud(oyente)();
+      const responder = servidorManual();
+
+      const pedido = apiClient.get("/api/medicos");
+      await vi.advanceTimersByTimeAsync(UMBRAL_LENTO_MS + 1);
+      responder();
+      await pedido;
+
+      expect(oyente).not.toHaveBeenCalled();
+    });
+
+    it("en la demostración el pedido espera 90 segundos antes de cortarse (el arranque en frío tarda)", async () => {
+      vi.stubEnv("VITE_MODO_DEMO", "true");
+      vi.resetModules();
+
+      const { apiClient: clienteDemo } = await import("./client");
+
+      expect(TIMEOUT_DEMO_MS).toBe(90_000);
+      expect(clienteDemo.defaults.timeout).toBe(TIMEOUT_DEMO_MS);
     });
   });
 });
