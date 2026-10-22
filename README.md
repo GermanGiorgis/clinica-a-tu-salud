@@ -232,6 +232,10 @@ encontró. Lo que quedó:
 | `SEED_DEMO_MEDICOS` | Carga profesionales de demostración en todas las especialidades | **No activar fuera de tu máquina** |
 | `SEED_DEMO_CUENTAS` | Crea una cuenta por rol con contraseña pública | **Solo entornos descartables** |
 | `VITE_MODO_DEMO` (al compilar el frontend) | Muestra el aviso de demostración y los botones de cuentas de prueba | Solo en demos |
+| `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER` | Dónde está la base (si no están se usan los `PG*` que inyecta Neon) | No (por defecto `localhost:5432/clinica`) |
+| `DB_URL_PARAMS` | Parámetros al final de la URL JDBC, p. ej. `?sslmode=require` | Según la base |
+| `FORWARD_HEADERS_STRATEGY` | `native` si hay un proxy de confianza adelante (para que el límite de intentos vea la IP real) | Solo detrás de un proxy |
+| `DEMO_REINICIO`, `FLYWAY_CLEAN_DISABLED`, `CRON_SECRET` | Reinicio diario de la demo en línea (borra TODA la base): ver [docs/despliegue.md](docs/despliegue.md) | **Nunca con datos reales** |
 
 ## Limitaciones conocidas
 

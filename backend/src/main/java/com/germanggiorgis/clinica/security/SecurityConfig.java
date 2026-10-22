@@ -84,7 +84,8 @@ public class SecurityConfig {
                         })
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**", "/error").permitAll()
+                        // /api/demo/** se autentica solo, con un token propio (ver DemoController); si el reinicio está apagado, responde 404.
+                        .requestMatchers("/api/auth/**", "/api/demo/**", "/error").permitAll()
                         .requestMatchers(HttpMethod.GET,
                                 "/api/especialidades/**", "/api/consultorios/**",
                                 "/api/motivos-cancelacion/**", "/api/horarios-atencion/**",
